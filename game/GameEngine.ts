@@ -73,7 +73,7 @@ export class GameEngine {
 
     // Input & Loop
     private hoverPos: { x: number, y: number } | null = null;
-    private tickerFn: ((ticker: Ticker) => void) | null = null;
+    private tickerFn: ((delta: number) => void) | null = null;
 
     constructor() {}
 
@@ -121,7 +121,9 @@ export class GameEngine {
         // Ticker management
         // v7 Ticker callback receives 'delta' (frame lag), not the Ticker object itself
         if (this.tickerFn) this.app!.ticker.remove(this.tickerFn);
-        this.tickerFn = (ticker: Ticker) => this.gameLoop(ticker.deltaTime);
+        // Fix for v7 Ticker: The argument passed is usually 'delta' (scalar), but type defs might vary.
+        // We use delta directly for game loop logic.
+        this.tickerFn = (delta: number) => this.gameLoop(delta);
         this.app!.ticker.add(this.tickerFn);
 
         this.setupInput();
@@ -581,15 +583,15 @@ export class GameEngine {
                 else gfx.drawCircle(CELL_SIZE/2, CELL_SIZE/2, 8);
                 gfx.endFill();
 
-                // Text v8 style
-                const text = new Text({
-                    text: 'Lv.' + t.level,
-                    style: {
-                        fontFamily: 'Arial', fontSize: 10, fill: '#ffffff',
-                        fontWeight: 'bold', 
-                        stroke: { color: '#000000', width: 2 }
-                    }
-                });
+                // Text v7 style (Corrected)
+                const text = new Text('Lv.' + t.level, {
+                    fontFamily: 'Arial', 
+                    fontSize: 10, 
+                    fill: '#ffffff',
+                    fontWeight: 'bold', 
+                    stroke: '#000000', 
+                    strokeThickness: 2
+                } as any);
                 text.x = CELL_SIZE - 25;
                 text.y = -5;
                 container.addChild(text);
