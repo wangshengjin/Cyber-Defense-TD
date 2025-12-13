@@ -378,6 +378,7 @@ export class GameEngine {
                     this.wave++;
                     this.projectiles = [];
                     this.beams = [];
+                    this.particles = []; // Clear particles so they don't freeze on screen
                     this.syncStatsToReact();
                 }
             }
