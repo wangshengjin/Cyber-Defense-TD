@@ -228,7 +228,7 @@ export class GameEngine {
         if (this.money >= cost) {
             tower.upgrade();
             this.money -= cost;
-            this.createParticle(tower.x + 0.5, tower.y + 0.5, 0xfbbf24, 10);
+            this.createExplosion(tower.x + 0.5, tower.y + 0.5, 0xfbbf24, 15, 1.5);
             this.syncStatsToReact();
             this.updateSelectionInfo();
         }
@@ -248,7 +248,7 @@ export class GameEngine {
         t.destroy();
         this.towers.splice(idx, 1);
         this.money += refund;
-        this.createParticle(t.x + 0.5, t.y + 0.5, 0xffffff, 15);
+        this.createExplosion(t.x + 0.5, t.y + 0.5, 0xffffff, 10, 1);
         
         if(this.callbacks) this.callbacks.onTowerSelect(null);
         this.selectedTowerId = null;
@@ -314,7 +314,7 @@ export class GameEngine {
                 this.layers!.towers.addChild(newTower.container);
                 
                 this.money -= stats.cost;
-                this.createParticle(x + 0.5, y + 0.5, 0xffffff, 10);
+                this.createExplosion(x + 0.5, y + 0.5, 0xffffff, 12, 1);
                 
                 this.callbacks.onTowerTypeReset();
                 this.placementModeType = null;
@@ -398,10 +398,12 @@ export class GameEngine {
                     this.beams.push(beam);
                     this.layers!.fx.addChild(beam.container);
                     shot.target.takeDamage(shot.data.damage);
-                    this.createParticle(shot.target.x, shot.target.y, shot.data.color, 3);
+                    // Hit effect for beams
+                    this.createExplosion(shot.target.x, shot.target.y, shot.data.color, 5, 0.6);
                 } 
                 else if (shot.type === 'AREA') {
-                    this.createParticle(tower.x + 0.5, tower.y + 0.5, shot.data.color, 2);
+                    // Area Pulse Effect
+                    this.createExplosion(tower.x + 0.5, tower.y + 0.5, shot.data.color, 8, 1.2);
                 }
             }
         });
@@ -411,8 +413,7 @@ export class GameEngine {
             const p = this.projectiles[i];
             p.update(dt);
             if (p.markedForDeletion) {
-                // Splash Damage Logic can also be moved to Projectile if we pass enemies array to it, 
-                // but engine managing collisions is often cleaner for access to global enemy list.
+                // Splash Damage Logic
                 this.enemies.forEach(e => {
                      const px = p.x; 
                      const py = p.y;
@@ -420,7 +421,10 @@ export class GameEngine {
                          e.takeDamage(p.damage);
                      }
                 });
-                this.createParticle(p.x, p.y, 0xf97316, 8);
+                
+                // Explosion FX
+                this.createExplosion(p.x, p.y, 0xf97316, 15, 1.0);
+                
                 p.destroy();
                 this.projectiles.splice(i, 1);
             }
@@ -433,7 +437,8 @@ export class GameEngine {
 
             if (e.markedForDeletion) {
                 this.money += e.reward;
-                this.createParticle(e.x, e.y, ENEMY_STATS[e.type].hexColor, 5);
+                // Death Explosion
+                this.createExplosion(e.x, e.y, ENEMY_STATS[e.type].hexColor, 20, 1.2);
                 e.destroy();
                 this.enemies.splice(i, 1);
                 this.syncStatsToReact();
@@ -519,12 +524,32 @@ export class GameEngine {
         this.layers!.enemies.addChild(enemy.container);
     }
 
-    private createParticle(x: number, y: number, color: number, count: number = 5) {
+    // NEW: Spawns multiple particles for an explosion effect
+    private createExplosion(x: number, y: number, color: number, count: number = 8, scale: number = 1) {
         for(let i=0; i<count; i++) {
-            const p = new GameParticle(Math.random().toString(), x, y, color);
+            const p = new GameParticle(
+                Math.random().toString(), 
+                x, y, 
+                color, 
+                { 
+                    speed: 0.2 * scale, 
+                    size: (2 + Math.random() * 4) * scale, 
+                    duration: 30 + Math.random() * 20 
+                }
+            );
             this.particles.push(p);
             this.layers!.fx.addChild(p.container);
         }
+        
+        // Optional: Flash center
+        const flash = new GameParticle(
+             Math.random().toString(),
+             x, y,
+             0xFFFFFF,
+             { speed: 0, size: 10 * scale, duration: 6 }
+        );
+        this.particles.push(flash);
+        this.layers!.fx.addChild(flash.container);
     }
 
     private drawGrid() {
@@ -560,6 +585,9 @@ export class GameEngine {
     }
 
     private isPath(x: number, y: number): boolean {
+        // Defensive check
+        if (!PATH_COORDINATES || PATH_COORDINATES.length === 0) return false;
+
         for (let i = 0; i < PATH_COORDINATES.length - 1; i++) {
             const p1 = PATH_COORDINATES[i];
             const p2 = PATH_COORDINATES[i+1];
