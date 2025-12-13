@@ -3,7 +3,13 @@ import {
   TowerType, EnemyType, SelectedTowerInfo, GameState, MAP_WIDTH, MAP_HEIGHT, CELL_SIZE 
 } from '../types';
 import { PATH_COORDINATES, TOWER_STATS, WAVES, COLORS, ENEMY_STATS } from '../constants';
-import { GameEnemy, GameTower, GameProjectile, GameParticle, GameBeam } from './GameObjects';
+
+// Import from new structure
+import { GameEnemy } from './entities/GameEnemy';
+import { GameProjectile } from './entities/GameProjectile';
+import { GameParticle, GameBeam } from './entities/GameEffects';
+import { BaseTower } from './towers/BaseTower';
+import { TowerFactory } from './towers/TowerFactory';
 
 const APP_KEY = '__CYBER_TD_PIXI_APP_V7__';
 
@@ -31,14 +37,14 @@ export class GameEngine {
     private placementModeType: TowerType | null = null;
     private selectedTowerId: string | null = null;
 
-    // OO Entities
+    // Entities
     private enemies: GameEnemy[] = [];
-    private towers: GameTower[] = [];
+    private towers: BaseTower[] = [];
     private projectiles: GameProjectile[] = [];
     private particles: GameParticle[] = [];
     private beams: GameBeam[] = [];
 
-    // Layers (Containers)
+    // Layers
     private layers: {
         grid: Container;
         path: Container;
@@ -127,7 +133,6 @@ export class GameEngine {
         
         this.app.stage.removeChildren();
 
-        // Initialize Layers
         this.layers = {
             grid: new Container(),
             path: new Container(),
@@ -139,7 +144,6 @@ export class GameEngine {
             ui: new Container(),
         };
 
-        // Add to stage in order (Z-index)
         this.app.stage.addChild(this.layers.grid);
         this.app.stage.addChild(this.layers.path);
         this.app.stage.addChild(this.layers.ground);
@@ -166,7 +170,7 @@ export class GameEngine {
         this.placementModeType = type;
         this.selectedTowerId = null; 
         this.updateSelectionInfo();
-        this.renderUI(); // Update UI immediately
+        this.renderUI(); 
     }
 
     public setSelectedTowerId(id: string | null) {
@@ -192,7 +196,6 @@ export class GameEngine {
     }
 
     public restartGame() {
-        // Destroy old entities
         this.enemies.forEach(e => e.destroy());
         this.towers.forEach(t => t.destroy());
         this.projectiles.forEach(p => p.destroy());
@@ -300,11 +303,13 @@ export class GameEngine {
         if (this.placementModeType) {
             const stats = TOWER_STATS[this.placementModeType];
             if (this.money >= stats.cost) {
-                const newTower = new GameTower(
+                // USE FACTORY HERE
+                const newTower = TowerFactory.createTower(
+                    this.placementModeType,
                     Math.random().toString(), 
-                    this.placementModeType, 
                     x, y
                 );
+                
                 this.towers.push(newTower);
                 this.layers!.towers.addChild(newTower.container);
                 
@@ -332,7 +337,7 @@ export class GameEngine {
         if (!this.isPlaying || this.isGameOver) return;
         const now = Date.now();
 
-        // 1. Wave Spawning Logic
+        // 1. Wave Spawning
         if (this.waveState.waveActive) {
             const waveIdx = this.wave - 1;
             const config = waveIdx < WAVES.length ? WAVES[waveIdx] : [
@@ -355,7 +360,6 @@ export class GameEngine {
                     this.isPlaying = false;
                     this.wave++;
                     
-                    // Clean up scene
                     this.projectiles.forEach(p => p.destroy());
                     this.beams.forEach(b => b.destroy());
                     this.particles.forEach(p => p.destroy());
@@ -368,7 +372,7 @@ export class GameEngine {
             }
         }
 
-        // 2. Towers Fire
+        // 2. Towers Fire (Polymorphic call)
         this.towers.forEach(tower => {
             const shot = tower.checkFire(now, this.enemies);
             if (shot) {
@@ -397,7 +401,6 @@ export class GameEngine {
                     this.createParticle(shot.target.x, shot.target.y, shot.data.color, 3);
                 } 
                 else if (shot.type === 'AREA') {
-                    // Visual area effect
                     this.createParticle(tower.x + 0.5, tower.y + 0.5, shot.data.color, 2);
                 }
             }
@@ -408,13 +411,11 @@ export class GameEngine {
             const p = this.projectiles[i];
             p.update(dt);
             if (p.markedForDeletion) {
-                // AoE damage logic
+                // Splash Damage Logic can also be moved to Projectile if we pass enemies array to it, 
+                // but engine managing collisions is often cleaner for access to global enemy list.
                 this.enemies.forEach(e => {
-                     const dist = Math.hypot(e.x - p.x, e.y - p.y); // using virtual x,y here as approximation
-                     // Note: Projectile x/y are already scaled in P.update? No, they are grid coords inside class
                      const px = p.x; 
                      const py = p.y;
-                     // simple distance check
                      if (Math.hypot(e.x - px, e.y - py) <= p.splashRadius) {
                          e.takeDamage(p.damage);
                      }
@@ -431,7 +432,6 @@ export class GameEngine {
             e.update(dt);
 
             if (e.markedForDeletion) {
-                // Killed by player
                 this.money += e.reward;
                 this.createParticle(e.x, e.y, ENEMY_STATS[e.type].hexColor, 5);
                 e.destroy();
@@ -439,7 +439,6 @@ export class GameEngine {
                 this.syncStatsToReact();
             } 
             else if (e.pathIndex >= PATH_COORDINATES.length - 1) {
-                // Reached end
                 this.lives = Math.max(0, this.lives - e.damage);
                 e.destroy();
                 this.enemies.splice(i, 1);
@@ -464,7 +463,6 @@ export class GameEngine {
             }
         }
 
-        // Check Game Over
         if (this.lives <= 0 && !this.isGameOver) {
             this.isGameOver = true;
             this.isPlaying = false;
@@ -514,8 +512,6 @@ export class GameEngine {
             this.uiIndicators.range.endFill();
         }
     }
-
-    // --- Helpers ---
 
     private spawnEnemy(type: EnemyType, hpMult: number) {
         const enemy = new GameEnemy(Math.random().toString(), type, hpMult);
