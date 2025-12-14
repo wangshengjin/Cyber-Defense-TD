@@ -347,14 +347,12 @@ export class GameEngine {
     }
 
     private updateLogic(dt: number) {
+        // Update Particles always so they fade out even between waves or when paused
+        this.particleSystem.update(dt / 16.66);
+
         if (!this.isPlaying || this.isGameOver) return;
         const now = Date.now();
         
-        // Update Particles (Frame-independent-ish)
-        // Pixi's delta is 1 for 60fps. dt is ms.
-        // We pass a normalized factor to update where 1.0 approx 16ms
-        this.particleSystem.update(dt / 16.66);
-
         // 1. Wave Spawning
         if (this.waveState.waveActive) {
             const waveIdx = this.wave - 1;
@@ -504,8 +502,6 @@ export class GameEngine {
             }
         }
         
-        // Particle system updated at top of loop
-
         if (this.lives <= 0 && !this.isGameOver) {
             this.isGameOver = true;
             this.isPlaying = false;
