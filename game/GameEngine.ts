@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Ticker, FederatedPointerEvent } from 'pixi.js';
+import { Application, Container, Graphics, Ticker, FederatedPointerEvent, Renderer } from 'pixi.js';
 import { 
   TowerType, EnemyType, SelectedTowerInfo, GameState, MAP_WIDTH, MAP_HEIGHT, CELL_SIZE 
 } from '../types';
@@ -7,7 +7,7 @@ import { PATH_COORDINATES, TOWER_STATS, WAVES, COLORS, ENEMY_STATS } from '../co
 // Import from new structure
 import { GameEnemy } from './entities/GameEnemy';
 import { GameProjectile } from './entities/GameProjectile';
-import { GameParticle, GameBeam } from './entities/GameEffects';
+import { GameBeam, ParticleSystem } from './entities/GameEffects';
 import { BaseTower } from './towers/BaseTower';
 import { TowerFactory } from './towers/TowerFactory';
 
@@ -41,7 +41,9 @@ export class GameEngine {
     private enemies: GameEnemy[] = [];
     private towers: BaseTower[] = [];
     private projectiles: GameProjectile[] = [];
-    private particles: GameParticle[] = [];
+    
+    // Effects System
+    private particleSystem: ParticleSystem;
     private beams: GameBeam[] = [];
 
     // Layers
@@ -72,7 +74,9 @@ export class GameEngine {
     private hoverPos: { x: number, y: number } | null = null;
     private tickerFn: ((ticker: Ticker) => void) | null = null;
 
-    constructor() {}
+    constructor() {
+        this.particleSystem = new ParticleSystem(3000);
+    }
 
     public initialize() {
         if (this.isInitialized && this.app) return;
@@ -104,6 +108,9 @@ export class GameEngine {
         if (this.app!.view && this.app!.view.parentElement !== container) {
             container.appendChild(this.app!.view as any);
         }
+
+        // Init Particle Texture using Renderer
+        this.particleSystem.init(this.app!.renderer as Renderer);
 
         this.resetScene();
 
@@ -140,7 +147,7 @@ export class GameEngine {
             towers: new Container(),
             enemies: new Container(),
             projectiles: new Container(),
-            fx: new Container(),
+            fx: new Container(), // For beams/non-particle FX
             ui: new Container(),
         };
 
@@ -150,7 +157,11 @@ export class GameEngine {
         this.app.stage.addChild(this.layers.towers);
         this.app.stage.addChild(this.layers.enemies);
         this.app.stage.addChild(this.layers.projectiles);
+        
+        // Add particle container to stage (it's separate to allow better blending usually, or just above others)
+        this.app.stage.addChild(this.particleSystem.container);
         this.app.stage.addChild(this.layers.fx);
+        
         this.app.stage.addChild(this.layers.ui);
 
         this.drawGrid();
@@ -199,14 +210,13 @@ export class GameEngine {
         this.enemies.forEach(e => e.destroy());
         this.towers.forEach(t => t.destroy());
         this.projectiles.forEach(p => p.destroy());
-        this.particles.forEach(p => p.destroy());
         this.beams.forEach(b => b.destroy());
 
         this.enemies = [];
         this.towers = [];
         this.projectiles = [];
-        this.particles = [];
         this.beams = [];
+        this.particleSystem.clear();
 
         this.waveState = { waveIndex: 0, enemiesSpawned: 0, lastSpawnTime: 0, waveActive: false };
         this.money = 450;
@@ -228,7 +238,8 @@ export class GameEngine {
         if (this.money >= cost) {
             tower.upgrade();
             this.money -= cost;
-            this.createExplosion(tower.x + 0.5, tower.y + 0.5, 0xfbbf24, 15, 1.5);
+            // Upgrade FX
+            this.createExplosion((tower.x + 0.5) * CELL_SIZE, (tower.y + 0.5) * CELL_SIZE, 0xfbbf24, 20, 1.5);
             this.syncStatsToReact();
             this.updateSelectionInfo();
         }
@@ -248,7 +259,8 @@ export class GameEngine {
         t.destroy();
         this.towers.splice(idx, 1);
         this.money += refund;
-        this.createExplosion(t.x + 0.5, t.y + 0.5, 0xffffff, 10, 1);
+        // Sell FX
+        this.createExplosion((t.x + 0.5) * CELL_SIZE, (t.y + 0.5) * CELL_SIZE, 0xffffff, 15, 1);
         
         if(this.callbacks) this.callbacks.onTowerSelect(null);
         this.selectedTowerId = null;
@@ -303,7 +315,6 @@ export class GameEngine {
         if (this.placementModeType) {
             const stats = TOWER_STATS[this.placementModeType];
             if (this.money >= stats.cost) {
-                // USE FACTORY HERE
                 const newTower = TowerFactory.createTower(
                     this.placementModeType,
                     Math.random().toString(), 
@@ -314,7 +325,9 @@ export class GameEngine {
                 this.layers!.towers.addChild(newTower.container);
                 
                 this.money -= stats.cost;
-                this.createExplosion(x + 0.5, y + 0.5, 0xffffff, 12, 1);
+                
+                // Build FX
+                this.createExplosion((x + 0.5) * CELL_SIZE, (y + 0.5) * CELL_SIZE, 0xffffff, 15, 1.2);
                 
                 this.callbacks.onTowerTypeReset();
                 this.placementModeType = null;
@@ -336,6 +349,11 @@ export class GameEngine {
     private updateLogic(dt: number) {
         if (!this.isPlaying || this.isGameOver) return;
         const now = Date.now();
+        
+        // Update Particles (Frame-independent-ish)
+        // Pixi's delta is 1 for 60fps. dt is ms.
+        // We pass a normalized factor to update where 1.0 approx 16ms
+        this.particleSystem.update(dt / 16.66);
 
         // 1. Wave Spawning
         if (this.waveState.waveActive) {
@@ -362,17 +380,15 @@ export class GameEngine {
                     
                     this.projectiles.forEach(p => p.destroy());
                     this.beams.forEach(b => b.destroy());
-                    this.particles.forEach(p => p.destroy());
                     this.projectiles = [];
                     this.beams = [];
-                    this.particles = [];
                     
                     this.syncStatsToReact();
                 }
             }
         }
 
-        // 2. Towers Fire (Polymorphic call)
+        // 2. Towers Fire
         this.towers.forEach(tower => {
             const shot = tower.checkFire(now, this.enemies);
             if (shot) {
@@ -385,6 +401,12 @@ export class GameEngine {
                     );
                     this.projectiles.push(p);
                     this.layers!.projectiles.addChild(p.container);
+                    // Muzzle flash
+                    this.createExplosion(
+                        (tower.x + 0.5) * CELL_SIZE, 
+                        (tower.y + 0.5) * CELL_SIZE, 
+                        0xffcc00, 5, 0.5
+                    );
                 } 
                 else if (shot.type === 'BEAM' && shot.target) {
                     const beam = new GameBeam(
@@ -398,12 +420,22 @@ export class GameEngine {
                     this.beams.push(beam);
                     this.layers!.fx.addChild(beam.container);
                     shot.target.takeDamage(shot.data.damage);
-                    // Hit effect for beams
-                    this.createExplosion(shot.target.x, shot.target.y, shot.data.color, 5, 0.6);
+                    // Hit effect
+                    this.createExplosion(
+                        shot.target.x * CELL_SIZE, 
+                        shot.target.y * CELL_SIZE, 
+                        shot.data.color, 
+                        10, 0.8
+                    );
                 } 
                 else if (shot.type === 'AREA') {
-                    // Area Pulse Effect
-                    this.createExplosion(tower.x + 0.5, tower.y + 0.5, shot.data.color, 8, 1.2);
+                    // Area Pulse Effect (using particles in a ring)
+                    this.createExplosion(
+                        (tower.x + 0.5) * CELL_SIZE, 
+                        (tower.y + 0.5) * CELL_SIZE, 
+                        shot.data.color, 
+                        20, 1.5
+                    );
                 }
             }
         });
@@ -417,13 +449,20 @@ export class GameEngine {
                 this.enemies.forEach(e => {
                      const px = p.x; 
                      const py = p.y;
+                     // p.x is grid coords in logic? No, GameProjectile uses grid coords internally but displays world.
+                     // GameProjectile x/y are grid coords.
                      if (Math.hypot(e.x - px, e.y - py) <= p.splashRadius) {
                          e.takeDamage(p.damage);
                      }
                 });
                 
                 // Explosion FX
-                this.createExplosion(p.x, p.y, 0xf97316, 15, 1.0);
+                this.createExplosion(
+                    p.x * CELL_SIZE, 
+                    p.y * CELL_SIZE, 
+                    0xf97316, 
+                    15, 1.2
+                );
                 
                 p.destroy();
                 this.projectiles.splice(i, 1);
@@ -438,7 +477,12 @@ export class GameEngine {
             if (e.markedForDeletion) {
                 this.money += e.reward;
                 // Death Explosion
-                this.createExplosion(e.x, e.y, ENEMY_STATS[e.type].hexColor, 20, 1.2);
+                this.createExplosion(
+                    e.x * CELL_SIZE, 
+                    e.y * CELL_SIZE, 
+                    ENEMY_STATS[e.type].hexColor, 
+                    25, 1.5
+                );
                 e.destroy();
                 this.enemies.splice(i, 1);
                 this.syncStatsToReact();
@@ -459,14 +503,8 @@ export class GameEngine {
                 this.beams.splice(i, 1);
             }
         }
-
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            this.particles[i].update(dt);
-            if (this.particles[i].markedForDeletion) {
-                this.particles[i].destroy();
-                this.particles.splice(i, 1);
-            }
-        }
+        
+        // Particle system updated at top of loop
 
         if (this.lives <= 0 && !this.isGameOver) {
             this.isGameOver = true;
@@ -524,32 +562,26 @@ export class GameEngine {
         this.layers!.enemies.addChild(enemy.container);
     }
 
-    // NEW: Spawns multiple particles for an explosion effect
-    private createExplosion(x: number, y: number, color: number, count: number = 8, scale: number = 1) {
-        for(let i=0; i<count; i++) {
-            const p = new GameParticle(
-                Math.random().toString(), 
-                x, y, 
-                color, 
-                { 
-                    speed: 0.2 * scale, 
-                    size: (2 + Math.random() * 4) * scale, 
-                    duration: 30 + Math.random() * 20 
-                }
-            );
-            this.particles.push(p);
-            this.layers!.fx.addChild(p.container);
-        }
+    // New API for creating explosions using the system
+    private createExplosion(worldX: number, worldY: number, color: number, count: number = 10, scale: number = 1) {
+        this.particleSystem.emit({
+            x: worldX,
+            y: worldY,
+            color: color,
+            count: count,
+            speed: scale,
+            life: 45 * scale
+        });
         
-        // Optional: Flash center
-        const flash = new GameParticle(
-             Math.random().toString(),
-             x, y,
-             0xFFFFFF,
-             { speed: 0, size: 10 * scale, duration: 6 }
-        );
-        this.particles.push(flash);
-        this.layers!.fx.addChild(flash.container);
+        // Add a secondary burst for detail
+        this.particleSystem.emit({
+            x: worldX,
+            y: worldY,
+            color: 0xFFFFFF,
+            count: Math.floor(count / 2),
+            speed: scale * 1.5,
+            life: 20
+        });
     }
 
     private drawGrid() {

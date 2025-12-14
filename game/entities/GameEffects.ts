@@ -1,83 +1,154 @@
-import { Graphics } from 'pixi.js';
+import { Graphics, ParticleContainer, Sprite, Renderer, Texture, Container, BLEND_MODES } from 'pixi.js';
 import { GameObject } from './GameObject';
 import { CELL_SIZE } from '../../types';
 
-export class GameParticle extends GameObject {
-    public vx: number;
-    public vy: number;
-    public life: number = 1.0;
-    public decay: number;
-    public color: number;
-    public size: number;
-    
-    private gfx: Graphics;
-    public x: number;
-    public y: number;
+// --- Particle System ---
 
-    constructor(id: string, x: number, y: number, color: number, config: { speed?: number, size?: number, duration?: number } = {}) {
-        super(id);
-        this.x = x;
-        this.y = y;
-        this.color = color;
-        
-        // Configuration with defaults
-        const baseSpeed = config.speed ?? 0.2;
-        this.size = config.size ?? (Math.random() * 4 + 2);
-        const duration = config.duration ?? 40; // Frames approx
-        
-        this.decay = 1.0 / duration;
+interface Particle {
+    sprite: Sprite;
+    vx: number;
+    vy: number;
+    life: number;
+    maxLife: number;
+    scaleSpeed: number;
+    active: boolean;
+}
 
-        // Random burst direction
-        const angle = Math.random() * Math.PI * 2;
-        const speed = baseSpeed * (0.2 + Math.random() * 1.5); // Vary speed significantly
-        
-        this.vx = Math.cos(angle) * speed;
-        this.vy = Math.sin(angle) * speed;
+export class ParticleSystem {
+    public container: ParticleContainer;
+    private particles: Particle[] = [];
+    private pool: Particle[] = [];
+    private texture: Texture | null = null;
+    private initialized = false;
 
-        this.gfx = new Graphics();
-        // Additive blending makes particles glow when they overlap
-        this.gfx.blendMode = 1; // BLEND_MODES.ADD
+    constructor(capacity: number = 2000) {
+        // ParticleContainer is optimized for many sprites with same texture
+        // Casting to any to bypass strict type check for constructor arguments in some Pixi versions
+        this.container = new (ParticleContainer as any)(capacity, {
+            scale: true,
+            position: true,
+            rotation: true,
+            uvs: false, // We don't change texture UVs
+            alpha: true,
+            tint: true
+        });
         
-        this.gfx.beginFill(this.color);
-        this.gfx.drawCircle(0, 0, this.size);
-        this.gfx.endFill();
-        
-        this.container.addChild(this.gfx);
-        this.updatePosition();
+        // Use Additive blending for "glowing" light effects
+        this.container.blendMode = BLEND_MODES.ADD;
     }
 
-    private updatePosition() {
-        this.container.x = this.x * CELL_SIZE;
-        this.container.y = this.y * CELL_SIZE;
+    public init(renderer: Renderer) {
+        if (this.initialized) return;
+
+        // Generate a soft circle texture programmatically
+        const gfx = new Graphics();
+        const r = 16;
+        gfx.beginFill(0xFFFFFF);
+        gfx.drawCircle(r, r, r); 
+        gfx.endFill();
+        
+        // Render it to a texture
+        this.texture = renderer.generateTexture(gfx);
+        this.initialized = true;
     }
 
-    public update(dt: number): void {
-        // dt is ms. normalize to approx 60fps frame (16ms)
-        const frameScale = dt / 16.66;
+    public emit(config: {
+        x: number; 
+        y: number; 
+        color: number; 
+        count: number; 
+        speed?: number; 
+        life?: number; 
+        spread?: number;
+    }) {
+        if (!this.texture) return;
 
-        this.x += this.vx * frameScale;
-        this.y += this.vy * frameScale;
-        
-        // Friction (slow down over time)
-        this.vx *= 0.92;
-        this.vy *= 0.92;
+        const { x, y, color, count, speed = 1, life = 40, spread = Math.PI * 2 } = config;
 
-        // Decay life
-        this.life -= this.decay * frameScale;
-        
-        // Visual updates
-        this.container.alpha = this.life;
-        // Shrink as it fades
-        this.container.scale.set(0.3 + 0.7 * this.life); 
+        for (let i = 0; i < count; i++) {
+            let p = this.pool.pop();
+            
+            // Create new if pool empty
+            if (!p) {
+                const s = new Sprite(this.texture);
+                s.anchor.set(0.5);
+                this.container.addChild(s);
+                p = { sprite: s, vx: 0, vy: 0, life: 0, maxLife: 0, scaleSpeed: 0, active: true };
+            } else {
+                p.active = true;
+                p.sprite.visible = true;
+            }
 
-        if (this.life <= 0) {
-            this.markedForDeletion = true;
-        } else {
-            this.updatePosition();
+            // Reset Properties
+            p.sprite.x = x;
+            p.sprite.y = y;
+            p.sprite.tint = color;
+            p.sprite.alpha = 1;
+            p.sprite.rotation = Math.random() * Math.PI * 2;
+            
+            // Randomize physics
+            const angle = Math.random() * spread;
+            const spd = (Math.random() * 0.5 + 0.5) * 5 * speed; // Base speed multiplier
+            
+            p.vx = Math.cos(angle) * spd;
+            p.vy = Math.sin(angle) * spd;
+            
+            p.maxLife = life * (0.5 + Math.random() * 0.5); // vary life by 50%
+            p.life = p.maxLife;
+            
+            const startScale = Math.random() * 0.4 + 0.2;
+            p.sprite.scale.set(startScale);
+            p.scaleSpeed = -startScale / p.maxLife; // Shrink to 0 over life
+
+            this.particles.push(p);
         }
+    }
+
+    public update(dtScale: number) {
+        // iterate backwards to allow splicing
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            
+            p.life -= dtScale;
+            
+            if (p.life <= 0) {
+                p.active = false;
+                p.sprite.visible = false;
+                this.pool.push(p);
+                this.particles.splice(i, 1);
+                continue;
+            }
+
+            // Physics
+            p.sprite.x += p.vx * dtScale;
+            p.sprite.y += p.vy * dtScale;
+            
+            // Drag
+            p.vx *= 0.95;
+            p.vy *= 0.95;
+
+            // Visuals
+            const progress = p.life / p.maxLife;
+            p.sprite.alpha = progress;
+            // p.sprite.rotation += 0.1 * dtScale;
+            
+            const currentScale = p.sprite.scale.x + (p.scaleSpeed * dtScale * 0.5); // shrink slower
+            p.sprite.scale.set(Math.max(0, currentScale));
+        }
+    }
+
+    public clear() {
+        // Return all to pool
+        for (const p of this.particles) {
+            p.active = false;
+            p.sprite.visible = false;
+            this.pool.push(p);
+        }
+        this.particles = [];
     }
 }
 
+// --- Beam Effect (Visual only) ---
 export class GameBeam extends GameObject {
     public startX: number;
     public startY: number;
@@ -102,7 +173,7 @@ export class GameBeam extends GameObject {
         this.maxLife = duration;
         
         this.gfx = new Graphics();
-        this.gfx.blendMode = 1; // BLEND_MODES.ADD - Make beams glow too
+        this.gfx.blendMode = BLEND_MODES.ADD;
         this.container.addChild(this.gfx);
         this.draw();
     }
@@ -120,6 +191,13 @@ export class GameBeam extends GameObject {
         this.gfx.clear();
         const alpha = this.life / this.maxLife;
         this.gfx.lineStyle(this.width, this.color, alpha);
+        
+        // Add a "core" line that is white/bright for beam effect
+        this.gfx.moveTo((this.startX + 0.5) * CELL_SIZE, (this.startY + 0.5) * CELL_SIZE);
+        this.gfx.lineTo((this.endX + 0.5) * CELL_SIZE, (this.endY + 0.5) * CELL_SIZE);
+        
+        // Glow
+        this.gfx.lineStyle(this.width * 2, this.color, alpha * 0.3);
         this.gfx.moveTo((this.startX + 0.5) * CELL_SIZE, (this.startY + 0.5) * CELL_SIZE);
         this.gfx.lineTo((this.endX + 0.5) * CELL_SIZE, (this.endY + 0.5) * CELL_SIZE);
     }
