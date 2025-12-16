@@ -1,4 +1,4 @@
-import { Graphics, ParticleContainer, Sprite, Renderer, Texture, Container, BLEND_MODES } from 'pixi.js';
+import { Graphics, Sprite, Renderer, Texture, Container, BLEND_MODES } from 'pixi.js';
 import { GameObject } from './GameObject';
 import { CELL_SIZE } from '../../types';
 
@@ -16,10 +16,10 @@ interface Particle {
 
 /**
  * 高性能粒子系统
- * 使用对象池 (Object Pooling) 和 Pixi 的 ParticleContainer 进行优化渲染
+ * 使用对象池 (Object Pooling) 和 Pixi 的 Container 进行渲染
  */
 export class ParticleSystem {
-    public container: ParticleContainer;
+    public container: Container;
     private particles: Particle[] = [];
     private pool: Particle[] = []; // 对象池：复用非活跃的粒子对象
     private texture: Texture | null = null;
@@ -30,20 +30,8 @@ export class ParticleSystem {
         this.particles = [];
         this.pool = [];
 
-        // ParticleContainer 针对大量相同纹理的 Sprite 进行了优化
-        // 我们开启 tint (染色) 和 alpha (透明度) 以支持多彩爆炸
-        this.container = new ParticleContainer(capacity, {
-            tint: true,
-            alpha: true,
-            scale: true,
-            position: true,
-            rotation: true,
-            uvs: false // 我们只用简单的圆形纹理，不需要 UV 变换
-        });
-        
-        // 使用叠加混合模式 (ADD) 制作发光效果
-        // 修复：PixiJS v7 必须使用 BLEND_MODES.ADD (整数枚举)，不能使用字符串 'add'
-        this.container.blendMode = BLEND_MODES.ADD;
+        // 使用普通 Container (Pixi v7 中 Container 没有 blendMode 属性，需要设置在子元素上)
+        this.container = new Container();
     }
 
     public init(renderer: Renderer) {
@@ -85,6 +73,9 @@ export class ParticleSystem {
             if (!p) {
                 const s = new Sprite(this.texture);
                 s.anchor.set(0.5);
+                // 修复：在 Sprite 级别设置混合模式，且使用 v7 的枚举
+                // Use explicit value 1 (ADD) cast to BLEND_MODES type to avoid "refers to a type" error
+                s.blendMode = 1 as unknown as BLEND_MODES; 
                 this.container.addChild(s);
                 p = { sprite: s, vx: 0, vy: 0, life: 0, maxLife: 0, scaleSpeed: 0, active: true };
             } else {
@@ -190,8 +181,9 @@ export class GameBeam extends GameObject {
         this.maxLife = duration;
         
         this.gfx = new Graphics();
-        // 修复：PixiJS v7 必须使用 BLEND_MODES.ADD
-        this.gfx.blendMode = BLEND_MODES.ADD;
+        // 修复：使用 v7 枚举
+        // Use explicit value 1 (ADD) cast to BLEND_MODES type to avoid "refers to a type" error
+        this.gfx.blendMode = 1 as unknown as BLEND_MODES;
         this.container.addChild(this.gfx);
         this.draw();
     }

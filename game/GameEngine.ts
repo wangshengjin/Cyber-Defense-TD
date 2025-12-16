@@ -10,6 +10,7 @@ import { GameProjectile } from './entities/GameProjectile';
 import { GameBeam, ParticleSystem } from './entities/GameEffects';
 import { BaseTower } from './towers/BaseTower';
 import { TowerFactory } from './towers/TowerFactory';
+import { soundManager } from './SoundManager'; // Import SoundManager
 
 const APP_KEY = '__CYBER_TD_PIXI_APP_V7__';
 
@@ -212,6 +213,9 @@ export class GameEngine {
     public startNextWave() {
         if (this.isGameOver) return;
         
+        // 尝试初始化音频（如果是第一次点击）
+        soundManager.init().catch(console.error);
+
         if (!this.waveState.waveActive) {
             // 开始新的一波
             this.waveState.waveIndex = 0;
@@ -312,6 +316,9 @@ export class GameEngine {
 
         // 鼠标点击处理：放置塔或选中塔
         const onPointerDown = (e: FederatedPointerEvent) => {
+            // 确保音频上下文已启动
+            soundManager.init().catch(console.error);
+
             const x = Math.floor(e.global.x / CELL_SIZE);
             const y = Math.floor(e.global.y / CELL_SIZE);
             this.handleTileClick(x, y);
@@ -423,6 +430,9 @@ export class GameEngine {
         this.towers.forEach(tower => {
             const shot = tower.checkFire(now, this.enemies);
             if (shot) {
+                // 播放对应防御塔的射击音效
+                soundManager.playShoot(tower.type);
+
                 if (shot.type === 'PROJECTILE' && shot.target) {
                     // 发射实体投射物 (如加农炮)
                     const p = new GameProjectile(
@@ -506,6 +516,9 @@ export class GameEngine {
             if (e.markedForDeletion) {
                 // 敌人死亡
                 this.money += e.reward;
+                // 播放死亡音效
+                soundManager.playDeath();
+                
                 // 死亡大爆炸特效 (Death) - 保留
                 // 修正：爆炸位置需要偏移 0.5 到格子中心
                 this.createExplosion(
