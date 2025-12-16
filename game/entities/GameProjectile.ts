@@ -18,8 +18,9 @@ export class GameProjectile extends GameObject {
         super(id);
         this.x = startX;
         this.y = startY;
-        this.targetX = target.x;
-        this.targetY = target.y;
+        // 修正：目标坐标增加 0.5，确保子弹飞向敌人的中心（因为敌人现在视觉上在中心）
+        this.targetX = target.x + 0.5;
+        this.targetY = target.y + 0.5;
         this.damage = damage;
 
         this.gfx = new Graphics();

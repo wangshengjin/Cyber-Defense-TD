@@ -56,8 +56,9 @@ export class GameEnemy extends GameObject {
     }
 
     private updatePosition() {
-        this.container.x = this.x * CELL_SIZE;
-        this.container.y = this.y * CELL_SIZE;
+        // 修正：增加 0.5 的偏移量，使敌人位于格子的中心，而不是左上角
+        this.container.x = (this.x + 0.5) * CELL_SIZE;
+        this.container.y = (this.y + 0.5) * CELL_SIZE;
     }
 
     private drawBody() {

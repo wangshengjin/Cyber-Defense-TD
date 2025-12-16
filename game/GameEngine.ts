@@ -449,9 +449,10 @@ export class GameEngine {
                     this.layers!.fx.addChild(beam.container);
                     shot.target.takeDamage(shot.data.damage); // 立即造成伤害
                     // 击中特效 (Beam Hit) - 保留，这是命中反馈
+                    // 修正：爆炸位置需要偏移 0.5 到格子中心
                     this.createExplosion(
-                        shot.target.x * CELL_SIZE, 
-                        shot.target.y * CELL_SIZE, 
+                        (shot.target.x + 0.5) * CELL_SIZE, 
+                        (shot.target.y + 0.5) * CELL_SIZE, 
                         shot.data.color, 
                         10, 0.8
                     );
@@ -484,6 +485,7 @@ export class GameEngine {
                 });
                 
                 // 子弹爆炸特效 (Impact) - 保留
+                // p.x 已经是逻辑中心坐标 (如 X.5)，直接乘 CELL_SIZE 即可
                 this.createExplosion(
                     p.x * CELL_SIZE, 
                     p.y * CELL_SIZE, 
@@ -505,9 +507,10 @@ export class GameEngine {
                 // 敌人死亡
                 this.money += e.reward;
                 // 死亡大爆炸特效 (Death) - 保留
+                // 修正：爆炸位置需要偏移 0.5 到格子中心
                 this.createExplosion(
-                    e.x * CELL_SIZE, 
-                    e.y * CELL_SIZE, 
+                    (e.x + 0.5) * CELL_SIZE, 
+                    (e.y + 0.5) * CELL_SIZE, 
                     ENEMY_STATS[e.type].hexColor, 
                     25, 1.5
                 );
