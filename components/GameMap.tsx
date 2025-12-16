@@ -15,6 +15,9 @@ const GameMap: React.FC<GameMapProps> = ({ onTileClick, hoverX, hoverY, isValidP
 
   // Mark path on grid for visualization
   const isPath = (x: number, y: number): boolean => {
+    // Defensive check
+    if (!PATH_COORDINATES) return false;
+
     // Simple check if point is on the segments
     for (let i = 0; i < PATH_COORDINATES.length - 1; i++) {
       const p1 = PATH_COORDINATES[i];

@@ -20,12 +20,16 @@ interface GameCallbacks {
     onTowerTypeReset: () => void;
 }
 
+/**
+ * 游戏核心引擎类
+ * 负责管理 PixiJS 应用实例、游戏循环、实体管理以及由于 React 交互的状态同步
+ */
 export class GameEngine {
     public app: Application | null = null;
     private callbacks: GameCallbacks | null = null;
     public isInitialized = false;
 
-    // Game State
+    // --- 游戏状态数据 ---
     private money: number = 450;
     private lives: number = 20;
     private wave: number = 1;
@@ -33,29 +37,29 @@ export class GameEngine {
     private isGameOver: boolean = false;
     private gameSpeed: number = 1;
 
-    // Selection State
-    private placementModeType: TowerType | null = null;
-    private selectedTowerId: string | null = null;
+    // --- 选中状态 ---
+    private placementModeType: TowerType | null = null; // 当前准备放置的塔类型
+    private selectedTowerId: string | null = null;      // 当前选中的已建造塔ID
 
-    // Entities
+    // --- 实体集合 ---
     private enemies: GameEnemy[] = [];
     private towers: BaseTower[] = [];
     private projectiles: GameProjectile[] = [];
     
-    // Effects System
+    // --- 特效系统 ---
     private particleSystem: ParticleSystem;
     private beams: GameBeam[] = [];
 
-    // Layers
+    // --- 图层管理 (用于控制渲染顺序) ---
     private layers: {
-        grid: Container;
-        path: Container;
-        ground: Container;
-        towers: Container;
-        enemies: Container;
-        projectiles: Container;
-        fx: Container;
-        ui: Container;
+        grid: Container;        // 网格层 (底层)
+        path: Container;        // 路径层
+        ground: Container;      // 地面装饰
+        towers: Container;      // 防御塔层
+        enemies: Container;     // 敌人生
+        projectiles: Container; // 投射物
+        fx: Container;          // 特效层 (光束等)
+        ui: Container;          // UI 指示器 (范围圈等)
     } | null = null;
 
     private uiIndicators = {
@@ -63,21 +67,27 @@ export class GameEngine {
         hover: new Graphics(),
     };
 
-    // Wave Management
+    // --- 波次管理状态 ---
     private waveState = {
-        waveIndex: 0,
-        enemiesSpawned: 0,
-        lastSpawnTime: 0,
-        waveActive: false,
+        waveIndex: 0,       // 当前波次内的子波段索引
+        enemiesSpawned: 0,  // 当前子波段已生成的敌人数量
+        lastSpawnTime: 0,   // 上一次生成的时间戳
+        waveActive: false,  // 波次是否正在进行中
     };
 
     private hoverPos: { x: number, y: number } | null = null;
+    // Pixi ticker callback now receives Ticker object in recent definitions
     private tickerFn: ((ticker: Ticker) => void) | null = null;
 
     constructor() {
+        // 初始化粒子系统，预分配3000个粒子容量
         this.particleSystem = new ParticleSystem(3000);
     }
 
+    /**
+     * 初始化 PixiJS Application
+     * 使用单例模式防止 React 重复渲染导致创建多个 Canvas
+     */
     public initialize() {
         if (this.isInitialized && this.app) return;
         const w = window as any;
@@ -100,6 +110,9 @@ export class GameEngine {
         this.isInitialized = true;
     }
 
+    /**
+     * 将 Canvas 挂载到 DOM 并启动游戏循环
+     */
     public attach(container: HTMLElement, callbacks: GameCallbacks) {
         if (!this.app) this.initialize();
 
@@ -109,12 +122,14 @@ export class GameEngine {
             container.appendChild(this.app!.view as any);
         }
 
-        // Init Particle Texture using Renderer
+        // 初始化粒子纹理
         this.particleSystem.init(this.app!.renderer as Renderer);
 
         this.resetScene();
 
+        // 绑定游戏主循环 (Ticker)
         if (this.tickerFn) this.app!.ticker.remove(this.tickerFn);
+        // Ticker passes the Ticker instance, from which we can get deltaTime
         this.tickerFn = (ticker: Ticker) => this.gameLoop(ticker.deltaTime);
         this.app!.ticker.add(this.tickerFn);
 
@@ -135,6 +150,7 @@ export class GameEngine {
         this.callbacks = null;
     }
 
+    // 重置场景图层结构
     private resetScene() {
         if (!this.app || !this.app.stage) return;
         
@@ -147,10 +163,11 @@ export class GameEngine {
             towers: new Container(),
             enemies: new Container(),
             projectiles: new Container(),
-            fx: new Container(), // For beams/non-particle FX
+            fx: new Container(), 
             ui: new Container(),
         };
 
+        // 按顺序添加图层，确保遮挡关系正确
         this.app.stage.addChild(this.layers.grid);
         this.app.stage.addChild(this.layers.path);
         this.app.stage.addChild(this.layers.ground);
@@ -158,7 +175,7 @@ export class GameEngine {
         this.app.stage.addChild(this.layers.enemies);
         this.app.stage.addChild(this.layers.projectiles);
         
-        // Add particle container to stage (it's separate to allow better blending usually, or just above others)
+        // 粒子系统通常放在较上层，并使用独立的容器
         this.app.stage.addChild(this.particleSystem.container);
         this.app.stage.addChild(this.layers.fx);
         
@@ -171,7 +188,7 @@ export class GameEngine {
         this.layers.ui.addChild(this.uiIndicators.hover);
     }
 
-    // --- External Control ---
+    // --- 外部控制接口 (React -> Engine) ---
 
     public setGameSpeed(speed: number) {
         this.gameSpeed = speed;
@@ -191,22 +208,26 @@ export class GameEngine {
         this.renderUI();
     }
 
+    // 开启下一波或暂停
     public startNextWave() {
         if (this.isGameOver) return;
         
         if (!this.waveState.waveActive) {
+            // 开始新的一波
             this.waveState.waveIndex = 0;
             this.waveState.enemiesSpawned = 0;
             this.waveState.waveActive = true;
             this.isPlaying = true;
             this.syncStatsToReact();
         } else {
+            // 切换暂停/继续状态
             this.isPlaying = !this.isPlaying;
             this.syncStatsToReact();
         }
     }
 
     public restartGame() {
+        // 销毁所有现有实体
         this.enemies.forEach(e => e.destroy());
         this.towers.forEach(t => t.destroy());
         this.projectiles.forEach(p => p.destroy());
@@ -218,6 +239,7 @@ export class GameEngine {
         this.beams = [];
         this.particleSystem.clear();
 
+        // 重置状态
         this.waveState = { waveIndex: 0, enemiesSpawned: 0, lastSpawnTime: 0, waveActive: false };
         this.money = 450;
         this.lives = 20;
@@ -229,6 +251,7 @@ export class GameEngine {
         this.updateSelectionInfo();
     }
 
+    // 升级塔逻辑
     public upgradeTower() {
         if (!this.selectedTowerId) return;
         const tower = this.towers.find(t => t.id === this.selectedTowerId);
@@ -238,13 +261,13 @@ export class GameEngine {
         if (this.money >= cost) {
             tower.upgrade();
             this.money -= cost;
-            // Upgrade FX
-            this.createExplosion((tower.x + 0.5) * CELL_SIZE, (tower.y + 0.5) * CELL_SIZE, 0xfbbf24, 20, 1.5);
+            // 升级只更新数据，不再播放粒子
             this.syncStatsToReact();
             this.updateSelectionInfo();
         }
     }
 
+    // 出售塔逻辑
     public sellTower() {
         if (!this.selectedTowerId) return;
         const idx = this.towers.findIndex(t => t.id === this.selectedTowerId);
@@ -259,8 +282,7 @@ export class GameEngine {
         t.destroy();
         this.towers.splice(idx, 1);
         this.money += refund;
-        // Sell FX
-        this.createExplosion((t.x + 0.5) * CELL_SIZE, (t.y + 0.5) * CELL_SIZE, 0xffffff, 15, 1);
+        // 出售只移除塔，不再播放粒子
         
         if(this.callbacks) this.callbacks.onTowerSelect(null);
         this.selectedTowerId = null;
@@ -268,13 +290,14 @@ export class GameEngine {
         this.updateSelectionInfo();
     }
 
-    // --- Internal Logic ---
+    // --- 内部游戏逻辑 ---
 
     private setupInput() {
         if (!this.app) return;
         this.app.stage.eventMode = 'static'; 
         this.app.stage.hitArea = this.app.screen;
 
+        // 鼠标移动处理：显示悬停框
         const onPointerMove = (e: FederatedPointerEvent) => {
             const x = Math.floor(e.global.x / CELL_SIZE);
             const y = Math.floor(e.global.y / CELL_SIZE);
@@ -287,6 +310,7 @@ export class GameEngine {
             }
         };
 
+        // 鼠标点击处理：放置塔或选中塔
         const onPointerDown = (e: FederatedPointerEvent) => {
             const x = Math.floor(e.global.x / CELL_SIZE);
             const y = Math.floor(e.global.y / CELL_SIZE);
@@ -300,7 +324,7 @@ export class GameEngine {
     private handleTileClick(x: number, y: number) {
         if (this.isGameOver || !this.callbacks) return;
 
-        // Check tower click
+        // 1. 检查是否点击了现有的塔 (选中)
         const existingTower = this.towers.find(t => t.x === x && t.y === y);
         if (existingTower) {
             this.callbacks.onTowerSelect(existingTower.id);
@@ -312,6 +336,7 @@ export class GameEngine {
 
         if (this.isPath(x, y)) return;
 
+        // 2. 检查是否处于建造模式 (放置新塔)
         if (this.placementModeType) {
             const stats = TOWER_STATS[this.placementModeType];
             if (this.money >= stats.cost) {
@@ -320,20 +345,19 @@ export class GameEngine {
                     Math.random().toString(), 
                     x, y
                 );
-                
                 this.towers.push(newTower);
                 this.layers!.towers.addChild(newTower.container);
                 
                 this.money -= stats.cost;
                 
-                // Build FX
-                this.createExplosion((x + 0.5) * CELL_SIZE, (y + 0.5) * CELL_SIZE, 0xffffff, 15, 1.2);
+                // 移除建造特效，只保留核心逻辑
                 
                 this.callbacks.onTowerTypeReset();
                 this.placementModeType = null;
                 this.syncStatsToReact();
             }
         } else {
+            // 点击空白处取消选中
             this.callbacks.onTowerSelect(null);
             this.selectedTowerId = null;
             this.updateSelectionInfo();
@@ -346,21 +370,27 @@ export class GameEngine {
         this.updateLogic(dtMs);
     }
 
+    /**
+     * 游戏逻辑核心更新函数 (每一帧调用)
+     * @param dt 距离上一帧的时间增量 (毫秒)
+     */
     private updateLogic(dt: number) {
-        // Update Particles always so they fade out even between waves or when paused
+        // 0. 更新粒子系统 (始终运行，即使游戏暂停，确保爆炸效果能播放完)
         this.particleSystem.update(dt / 16.66);
-
         if (!this.isPlaying || this.isGameOver) return;
         const now = Date.now();
         
-        // 1. Wave Spawning
+        // 1. 波次生成逻辑 (Wave Spawning)
         if (this.waveState.waveActive) {
+            if (!WAVES) return; // Defensive check for WAVES
             const waveIdx = this.wave - 1;
+            // 获取当前波次配置，如果没有配置则生成默认无限波次
             const config = waveIdx < WAVES.length ? WAVES[waveIdx] : [
                 { enemyType: EnemyType.TANK, count: 10 + waveIdx, interval: 1000, hpMultiplier: 1 + waveIdx * 0.2 }
             ];
             const subWave = config[Math.min(this.waveState.waveIndex, config.length - 1)];
-
+            
+            // 生成敌人
             if (this.waveState.enemiesSpawned < subWave.count) {
                 if (now - this.waveState.lastSpawnTime > subWave.interval / this.gameSpeed) {
                     this.spawnEnemy(subWave.enemyType, subWave.hpMultiplier);
@@ -368,14 +398,17 @@ export class GameEngine {
                     this.waveState.lastSpawnTime = now;
                 }
             } else {
+                // 当前子波段结束，进入下一个子波段或结束本波
                 if (this.waveState.waveIndex < config.length - 1) {
                     this.waveState.waveIndex++;
                     this.waveState.enemiesSpawned = 0;
                 } else if (this.enemies.length === 0) {
+                    // 本波所有敌人被消灭，波次结束
                     this.waveState.waveActive = false;
                     this.isPlaying = false;
                     this.wave++;
                     
+                    // 清理残留投射物和光束
                     this.projectiles.forEach(p => p.destroy());
                     this.beams.forEach(b => b.destroy());
                     this.projectiles = [];
@@ -386,11 +419,12 @@ export class GameEngine {
             }
         }
 
-        // 2. Towers Fire
+        // 2. 防御塔攻击逻辑 (Towers Fire)
         this.towers.forEach(tower => {
             const shot = tower.checkFire(now, this.enemies);
             if (shot) {
                 if (shot.type === 'PROJECTILE' && shot.target) {
+                    // 发射实体投射物 (如加农炮)
                     const p = new GameProjectile(
                         Math.random().toString(), 
                         tower.x + 0.5, tower.y + 0.5, 
@@ -399,14 +433,10 @@ export class GameEngine {
                     );
                     this.projectiles.push(p);
                     this.layers!.projectiles.addChild(p.container);
-                    // Muzzle flash
-                    this.createExplosion(
-                        (tower.x + 0.5) * CELL_SIZE, 
-                        (tower.y + 0.5) * CELL_SIZE, 
-                        0xffcc00, 5, 0.5
-                    );
+                    // 移除开火火花 (Muzzle Flash)，只在爆炸时播放
                 } 
                 else if (shot.type === 'BEAM' && shot.target) {
+                    // 瞬时光束攻击 (如激光、狙击)
                     const beam = new GameBeam(
                         Math.random().toString(),
                         tower.x, tower.y,
@@ -417,8 +447,8 @@ export class GameEngine {
                     );
                     this.beams.push(beam);
                     this.layers!.fx.addChild(beam.container);
-                    shot.target.takeDamage(shot.data.damage);
-                    // Hit effect
+                    shot.target.takeDamage(shot.data.damage); // 立即造成伤害
+                    // 击中特效 (Beam Hit) - 保留，这是命中反馈
                     this.createExplosion(
                         shot.target.x * CELL_SIZE, 
                         shot.target.y * CELL_SIZE, 
@@ -427,7 +457,7 @@ export class GameEngine {
                     );
                 } 
                 else if (shot.type === 'AREA') {
-                    // Area Pulse Effect (using particles in a ring)
+                    // 范围光环效果 (如减速塔) - 保留，这是技能释放视觉
                     this.createExplosion(
                         (tower.x + 0.5) * CELL_SIZE, 
                         (tower.y + 0.5) * CELL_SIZE, 
@@ -437,24 +467,23 @@ export class GameEngine {
                 }
             }
         });
-
-        // 3. Projectiles Update
+        
+        // 3. 投射物更新与碰撞检测 (Projectiles Update)
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.update(dt);
             if (p.markedForDeletion) {
-                // Splash Damage Logic
+                // 造成溅射伤害
                 this.enemies.forEach(e => {
                      const px = p.x; 
                      const py = p.y;
-                     // p.x is grid coords in logic? No, GameProjectile uses grid coords internally but displays world.
-                     // GameProjectile x/y are grid coords.
+                     // 简单的圆形碰撞检测
                      if (Math.hypot(e.x - px, e.y - py) <= p.splashRadius) {
                          e.takeDamage(p.damage);
                      }
                 });
                 
-                // Explosion FX
+                // 子弹爆炸特效 (Impact) - 保留
                 this.createExplosion(
                     p.x * CELL_SIZE, 
                     p.y * CELL_SIZE, 
@@ -467,14 +496,15 @@ export class GameEngine {
             }
         }
 
-        // 4. Enemies Update
+        // 4. 敌人更新 (Enemies Update)
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
             e.update(dt);
 
             if (e.markedForDeletion) {
+                // 敌人死亡
                 this.money += e.reward;
-                // Death Explosion
+                // 死亡大爆炸特效 (Death) - 保留
                 this.createExplosion(
                     e.x * CELL_SIZE, 
                     e.y * CELL_SIZE, 
@@ -485,7 +515,8 @@ export class GameEngine {
                 this.enemies.splice(i, 1);
                 this.syncStatsToReact();
             } 
-            else if (e.pathIndex >= PATH_COORDINATES.length - 1) {
+            else if (PATH_COORDINATES && e.pathIndex >= PATH_COORDINATES.length - 1) { // Added defensive check for PATH_COORDINATES
+                // 敌人到达终点，扣血
                 this.lives = Math.max(0, this.lives - e.damage);
                 e.destroy();
                 this.enemies.splice(i, 1);
@@ -493,7 +524,7 @@ export class GameEngine {
             }
         }
 
-        // 5. FX Update
+        // 5. 特效更新 (Beam FX Update)
         for (let i = this.beams.length - 1; i >= 0; i--) {
             this.beams[i].update(dt);
             if (this.beams[i].markedForDeletion) {
@@ -502,6 +533,7 @@ export class GameEngine {
             }
         }
         
+        // 游戏结束判定
         if (this.lives <= 0 && !this.isGameOver) {
             this.isGameOver = true;
             this.isPlaying = false;
@@ -509,9 +541,12 @@ export class GameEngine {
         }
     }
 
+    // --- UI 渲染辅助 ---
+
     private renderUI() {
         if (!this.layers) return;
 
+        // 绘制悬停格子的框 (绿色有效，红色无效/暂未实现)
         this.uiIndicators.hover.clear();
         if (this.hoverPos) {
             const { x, y } = this.hoverPos;
@@ -524,6 +559,7 @@ export class GameEngine {
             this.uiIndicators.hover.endFill();
         }
 
+        // 绘制攻击范围圈
         this.uiIndicators.range.clear();
         let range = 0;
         let cx = 0, cy = 0;
@@ -558,7 +594,10 @@ export class GameEngine {
         this.layers!.enemies.addChild(enemy.container);
     }
 
-    // New API for creating explosions using the system
+    /**
+     * 创建爆炸特效
+     * 调用粒子系统发射粒子
+     */
     private createExplosion(worldX: number, worldY: number, color: number, count: number = 10, scale: number = 1) {
         this.particleSystem.emit({
             x: worldX,
@@ -569,7 +608,7 @@ export class GameEngine {
             life: 45 * scale
         });
         
-        // Add a secondary burst for detail
+        // 额外的白色核心，增加打击感
         this.particleSystem.emit({
             x: worldX,
             y: worldY,

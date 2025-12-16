@@ -3,6 +3,10 @@ import { GameObject } from './GameObject';
 import { EnemyType, CELL_SIZE } from '../../types';
 import { ENEMY_STATS, PATH_COORDINATES } from '../../constants';
 
+/**
+ * 敌人类
+ * 负责敌人的属性、渲染和沿路径移动逻辑
+ */
 export class GameEnemy extends GameObject {
     public type: EnemyType;
     public hp: number;
@@ -11,12 +15,13 @@ export class GameEnemy extends GameObject {
     public reward: number;
     public damage: number;
     
-    public pathIndex: number = 0;
-    public progress: number = 0; 
-    public x: number;
-    public y: number;
+    // --- 路径跟踪属性 ---
+    public pathIndex: number = 0; // 当前目标路径节点的索引
+    public progress: number = 0;  // 在当前节点和下一个节点之间的进度 (0.0 到 1.0)
+    public x: number; // 当前逻辑坐标 X (网格单位)
+    public y: number; // 当前逻辑坐标 Y (网格单位)
     
-    public frozenFactor: number = 1;
+    public frozenFactor: number = 1; // 冰冻减速因子 (1 = 正常速度, <1 = 减速)
 
     private body: Graphics;
     private hpBar: Graphics;
@@ -32,8 +37,14 @@ export class GameEnemy extends GameObject {
         this.reward = stats.reward;
         this.damage = stats.damage;
 
-        this.x = PATH_COORDINATES[0].x;
-        this.y = PATH_COORDINATES[0].y;
+        // 安全检查：防止路径未定义
+        if (PATH_COORDINATES && PATH_COORDINATES.length > 0) {
+            this.x = PATH_COORDINATES[0].x;
+            this.y = PATH_COORDINATES[0].y;
+        } else {
+            this.x = 0;
+            this.y = 0;
+        }
         this.updatePosition();
 
         this.body = new Graphics();
@@ -60,24 +71,34 @@ export class GameEnemy extends GameObject {
         this.body.endFill();
     }
 
+    /**
+     * 更新敌人状态 (每一帧调用)
+     * 计算移动和减速恢复
+     */
     public update(dt: number): void {
+        // 缓慢恢复减速效果 (每帧恢复 0.005)
         this.frozenFactor = Math.min(this.frozenFactor + 0.005, 1);
 
-        if (this.pathIndex >= PATH_COORDINATES.length - 1) return;
+        // 防御性编程：检查 PATH_COORDINATES 是否存在
+        if (!PATH_COORDINATES || this.pathIndex >= PATH_COORDINATES.length - 1) return;
 
         const currentPos = PATH_COORDINATES[this.pathIndex];
         const nextPos = PATH_COORDINATES[this.pathIndex + 1];
         
+        // 计算移动距离
         const dist = Math.hypot(nextPos.x - currentPos.x, nextPos.y - currentPos.y);
         const move = this.speed * this.frozenFactor * (dt / 1000);
 
+        // 更新进度
         this.progress += move / dist;
 
+        // 到达下一个节点
         if (this.progress >= 1) {
             this.progress = 0;
             this.pathIndex++;
         }
 
+        // 线性插值计算当前坐标
         const p1 = PATH_COORDINATES[this.pathIndex];
         const p2 = PATH_COORDINATES[this.pathIndex + 1] || p1;
         this.x = p1.x + (p2.x - p1.x) * this.progress;
@@ -92,15 +113,18 @@ export class GameEnemy extends GameObject {
         const hpPct = Math.max(0, this.hp / this.maxHp);
         
         this.hpBar.clear();
+        // 血条背景 (灰色)
         this.hpBar.beginFill(0x374151);
         this.hpBar.drawRect(-15, -radius - 8, 30, 4);
         this.hpBar.endFill();
         
+        // 血条前景 (绿色或冰冻时的蓝色)
         const color = this.frozenFactor < 0.9 ? 0x60a5fa : 0x22c55e;
         this.hpBar.beginFill(color);
         this.hpBar.drawRect(-15, -radius - 8, 30 * hpPct, 4);
         this.hpBar.endFill();
         
+        // 视觉上表现冰冻状态 (变色半透明)
         if (this.frozenFactor < 0.9) {
             this.body.alpha = 0.7;
             this.body.tint = 0xAAAAFF;
