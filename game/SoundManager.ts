@@ -292,7 +292,7 @@ export class SoundManager {
         delayOsc.stop(t + 0.4);
     }
 
-    // --- 现有的 SFX (保持不变) ---
+    // --- 现有的 SFX ---
 
     public playShoot(type: TowerType) {
         if (this.isMuted) return;
@@ -311,7 +311,7 @@ export class SoundManager {
     public playDeath() {
         if (this.isMuted) return;
         const t = this.ctx.currentTime;
-        this.synthExplosion(t);
+        this.synthCreatureDeath(t);
     }
 
     private synthLaser(t: number, volScale: number) {
@@ -395,33 +395,55 @@ export class SoundManager {
         lfo.stop(t + 0.3);
     }
 
-    private synthExplosion(t: number) {
+    /**
+     * 模拟生物死亡/压扁的声音
+     * 结合了快速下降的锯齿波（惨叫）和低通噪音（破碎/压扁）
+     */
+    private synthCreatureDeath(t: number) {
+        // 1. 生物惨叫 (Creature Scream) - 下滑的锯齿波
         const osc = this.ctx.createOscillator();
-        osc.type = 'square'; 
-        osc.frequency.setValueAtTime(250, t);
-        osc.frequency.exponentialRampToValueAtTime(10, t + 0.15);
-        const oscGain = this.ctx.createGain();
-        oscGain.gain.setValueAtTime(0.4, t);
-        oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
-        osc.connect(oscGain);
-        oscGain.connect(this.masterGain);
-        osc.start(t);
-        osc.stop(t + 0.15);
+        osc.type = 'sawtooth';
+        // 稍微高一点的起调，模拟惨叫
+        osc.frequency.setValueAtTime(700, t); 
+        // 快速滑落，模拟失去生命力
+        osc.frequency.exponentialRampToValueAtTime(100, t + 0.25); 
 
-        const duration = 0.3;
-        const source = this.ctx.createBufferSource();
-        source.buffer = this.createNoiseBuffer(duration);
+        const oscGain = this.ctx.createGain();
+        oscGain.gain.setValueAtTime(0.12, t);
+        oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+
+        // 滤波去掉过于刺耳的高频，保留“叫声”的质感
         const filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass'; 
-        filter.frequency.setValueAtTime(2500, t); 
-        filter.frequency.exponentialRampToValueAtTime(100, t + duration);
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.8, t); 
-        gain.gain.exponentialRampToValueAtTime(0.01, t + duration);
-        source.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.masterGain);
-        source.start(t);
+        filter.type = 'lowpass';
+        filter.frequency.value = 2500;
+
+        osc.connect(filter);
+        filter.connect(oscGain);
+        oscGain.connect(this.masterGain);
+        
+        osc.start(t);
+        osc.stop(t + 0.3);
+
+        // 2. 躯体破碎 (Body Crunch) - 较闷的噪音
+        const duration = 0.2;
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.createNoiseBuffer(duration);
+
+        const noiseFilter = this.ctx.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        // 频率范围较低，听起来比较“厚重”或“粘稠”
+        noiseFilter.frequency.setValueAtTime(800, t);
+        noiseFilter.frequency.exponentialRampToValueAtTime(50, t + duration);
+
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.25, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, t + duration);
+
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+
+        noise.start(t);
     }
 
     private createNoiseBuffer(duration: number): AudioBuffer {
