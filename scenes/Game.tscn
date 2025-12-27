@@ -1,0 +1,153 @@
+[gd_scene load_steps=7 format=3 uid="uid://b8y2q8x7k4l3"]
+
+[ext_resource type="Script" path="res://scripts/Game.gd" id="1_game"]
+[ext_resource type="Script" path="res://scripts/MapManager.gd" id="2_map"]
+[ext_resource type="Script" path="res://scripts/WaveManager.gd" id="3_wave"]
+[ext_resource type="Script" path="res://scripts/UI/HUD.gd" id="4_hud"]
+[ext_resource type="Environment" uid="uid://c9k3r8x7k5m6" path="res://resources/CyberEnvironment.tres" id="5_env"]
+
+[sub_resource type="Curve2D" id="Curve2D_path"]
+_data = {
+"points": PackedVector2Array(0, 0, 0, 0, 20, 60, 0, 0, 0, 0, 180, 60, 0, 0, 0, 0, 180, 340, 0, 0, 0, 0, 380, 340, 0, 0, 0, 0, 380, 140, 0, 0, 0, 0, 580, 140, 0, 0, 0, 0, 580, 380, 0, 0, 0, 0, 740, 380, 0, 0, 0, 0, 740, 220, 0, 0, 0, 0, 820, 220)
+}
+point_count = 10
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_game")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(400, 240)
+zoom = Vector2(2, 2)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = ExtResource("5_env")
+
+[node name="MapManager" type="Node2D" parent="."]
+script = ExtResource("2_map")
+
+[node name="Path2D" type="Path2D" parent="."]
+curve = SubResource("Curve2D_path")
+
+[node name="Towers" type="Node2D" parent="."]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Projectiles" type="Node2D" parent="."]
+
+[node name="WaveManager" type="Node" parent="." node_paths=PackedStringArray("path_2d")]
+script = ExtResource("3_wave")
+path_2d = NodePath("../Path2D")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="HUD" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("4_hud")
+
+[node name="TopPanel" type="Panel" parent="CanvasLayer/HUD"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 40.0
+grow_horizontal = 2
+
+[node name="HBox" type="HBoxContainer" parent="CanvasLayer/HUD/TopPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="MoneyLabel" type="Label" parent="CanvasLayer/HUD/TopPanel/HBox"]
+layout_mode = 2
+text = "Money: $450"
+
+[node name="LivesLabel" type="Label" parent="CanvasLayer/HUD/TopPanel/HBox"]
+layout_mode = 2
+text = "Lives: 20"
+
+[node name="WaveLabel" type="Label" parent="CanvasLayer/HUD/TopPanel/HBox"]
+layout_mode = 2
+text = "Wave: 1"
+
+[node name="BottomPanel" type="Panel" parent="CanvasLayer/HUD"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -60.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="HBox" type="HBoxContainer" parent="CanvasLayer/HUD/BottomPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="BuildLaser" type="Button" parent="CanvasLayer/HUD/BottomPanel/HBox"]
+layout_mode = 2
+text = "Laser ($100)"
+
+[node name="BuildCannon" type="Button" parent="CanvasLayer/HUD/BottomPanel/HBox"]
+layout_mode = 2
+text = "Cannon ($250)"
+
+[node name="BuildSlow" type="Button" parent="CanvasLayer/HUD/BottomPanel/HBox"]
+layout_mode = 2
+text = "Slow ($150)"
+
+[node name="BuildSniper" type="Button" parent="CanvasLayer/HUD/BottomPanel/HBox"]
+layout_mode = 2
+text = "Sniper ($400)"
+
+[node name="VSeparator" type="VSeparator" parent="CanvasLayer/HUD/BottomPanel/HBox"]
+layout_mode = 2
+
+[node name="NextWaveBtn" type="Button" parent="CanvasLayer/HUD/BottomPanel"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -110.0
+offset_top = -50.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "Next Wave"
+
+[node name="SpeedBtn" type="Button" parent="CanvasLayer/HUD/BottomPanel"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -50.0
+offset_right = 90.0
+offset_bottom = -10.0
+grow_vertical = 0
+text = "1x Speed"
+
+[connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildLaser" to="CanvasLayer/HUD" method="_on_build_laser_pressed"]
+[connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildCannon" to="CanvasLayer/HUD" method="_on_build_cannon_pressed"]
+[connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildSlow" to="CanvasLayer/HUD" method="_on_build_slow_pressed"]
+[connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildSniper" to="CanvasLayer/HUD" method="_on_build_sniper_pressed"]
+[connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/NextWaveBtn" to="CanvasLayer/HUD" method="_on_next_wave_pressed"]
+[connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/SpeedBtn" to="CanvasLayer/HUD" method="_on_speed_toggle"]

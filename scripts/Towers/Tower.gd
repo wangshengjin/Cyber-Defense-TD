@@ -1,0 +1,184 @@
+extends Node2D
+
+class_name Tower
+
+var type: Constants.TowerType
+var stats: Dictionary
+var level: int = 1
+var cooldown_timer: float = 0.0
+var range_area: Area2D
+var allies_container: Node # To find targets
+var projectiles_container: Node
+
+# Visuals
+var base_sprite: ColorRect
+var turret_sprite: ColorRect
+
+func setup(p_type: Constants.TowerType, p_projectiles_container: Node):
+	type = p_type
+	projectiles_container = p_projectiles_container
+	_update_stats()
+	
+	_create_visuals()
+	_create_range_sensor()
+
+func _update_stats():
+	var base_stats = Constants.TOWER_STATS[type]
+	stats = base_stats.duplicate()
+	
+	# Level up logic from BALANCE.md
+	# Damage = Base * (1 + (Level - 1) * 0.5)
+	stats.damage = base_stats.damage * (1 + (level - 1) * 0.5)
+	# Range doesn't scale in docs? Only Slow tower slow strength?
+	# "Ice tower extra boost slow strength"
+	
+	stats.current_range = base_stats.range_tiles * Constants.CELL_SIZE
+
+func upgrade():
+	level += 1
+	_update_stats()
+	# Update visual level indicator?
+	if range_area:
+		var shape = range_area.get_child(0).shape as CircleShape2D
+		shape.radius = stats.current_range
+
+func sell():
+	var cost = Constants.TOWER_STATS[type].cost
+	# 70% return of total investment.
+	# Total = Cost + (Level-1)*Cost*1.5 ?
+	# Wait, docs: "Upgrade cost is 1.5x initial cost".
+	# So level 1 cost: Base.
+	# Level 2 cost: Base + Base*1.5.
+	var total_invest = cost
+	for i in range(1, level):
+		total_invest += cost * 1.5
+	
+	GameManager.money += int(total_invest * 0.7)
+	queue_free()
+
+func _create_visuals():
+	queue_redraw()
+
+func _draw():
+	var size = Constants.CELL_SIZE
+	var half_size = size / 2.0
+	
+	# Base
+	draw_rect(Rect2(-half_size + 2, -half_size + 2, size - 4, size - 4), stats.color.darkened(0.7))
+	draw_rect(Rect2(-half_size + 2, -half_size + 2, size - 4, size - 4), stats.color, false, 2.0) # Border
+	
+	# Turret
+	match type:
+		Constants.TowerType.LASER:
+			draw_circle(Vector2.ZERO, size * 0.25, stats.color)
+			draw_circle(Vector2.ZERO, size * 0.1, Color.WHITE)
+		Constants.TowerType.CANNON:
+			draw_rect(Rect2(-10, -10, 20, 20), stats.color)
+			draw_line(Vector2.ZERO, Vector2(15, 0).rotated(rotation), stats.color.lightened(0.2), 6.0) # Canon barrel? No rotation logic yet.
+		Constants.TowerType.SLOW:
+			draw_circle(Vector2.ZERO, size * 0.3, stats.color.lightened(0.5))
+			draw_arc(Vector2.ZERO, size * 0.4, 0, TAU, 16, stats.color, 2.0)
+		Constants.TowerType.SNIPER:
+			draw_rect(Rect2(-8, -8, 16, 16), stats.color)
+			draw_line(Vector2.ZERO, Vector2(20, 0), stats.color, 3.0) # Barrel
+
+	# Level Indicator
+	# draw_string(ThemeDB.get_fallback_font(), Vector2(-5, 5), str(level)) 
+
+func _process(delta):
+	cooldown_timer -= delta
+	if cooldown_timer <= 0:
+		var target = _find_target()
+		if target:
+			_fire(target)
+			cooldown_timer = stats.cooldown_ms / 1000.0
+func _create_range_sensor():
+	range_area = Area2D.new()
+	var shape = CollisionShape2D.new()
+	var circle = CircleShape2D.new()
+	circle.radius = stats.current_range
+	shape.shape = circle
+	range_area.add_child(shape)
+	add_child(range_area)
+
+func _find_target() -> Enemy:
+	# Get overlapping bodies/areas
+	# Assuming range_area monitors enemies
+	# But Area2D doesn't detect raw Node2D unless they have PhysicsBody.
+	# We added Area2D to Enemy? Not yet. BasicEnemy needs Area2D or CharacterBody2D.
+	# Let's assume Enemy is an Area2D (since PathFollow2D doesn't impart physics).
+	# Modification needed in Enemy.gd setup: Add Area2D.
+	var targets = range_area.get_overlapping_areas()
+	var best_target: Enemy = null
+	var max_progress = -1.0
+	
+	for body in targets:
+		var enemy = body.get_parent() as Enemy # Assuming Area represents Hitbox child of Enemy
+		if enemy:
+			if enemy.progress > max_progress:
+				max_progress = enemy.progress
+				best_target = enemy
+	
+	return best_target
+
+func _fire(target: Enemy):
+	# Type specific firing
+	match type:
+		Constants.TowerType.LASER, Constants.TowerType.SNIPER:
+			# Instant hit / Beam
+			_fire_laser(target)
+		Constants.TowerType.CANNON:
+			_fire_projectile(target)
+		Constants.TowerType.SLOW:
+			_fire_slow_pulse() # AOE around tower
+
+func _fire_laser(target: Enemy):
+	target.take_damage(stats.damage)
+	# Draw beam? We need a temporary line node.
+	var line = Line2D.new()
+	line.add_point(Vector2.ZERO)
+	line.add_point(to_local(target.global_position))
+	line.width = 2
+	line.default_color = stats.color
+	add_child(line)
+	
+	# Tween to fade out
+	var tween = create_tween()
+	tween.tween_property(line, "modulate:a", 0.0, 0.1)
+	tween.tween_callback(line.queue_free)
+	
+	# Spawn Impact logic (reusing ImpactEffect)
+	_spawn_impact_at(target.global_position, stats.color)
+
+func _fire_projectile(target: Enemy):
+	var proj_scene = preload("res://scenes/Projectiles/Projectile.tscn")
+	var proj = proj_scene.instantiate()
+	
+	projectiles_container.add_child(proj)
+	proj.global_position = global_position
+	# Increased speed from 300 to 600 to ensure hits on moving targets
+	# Increased splash from 1.5 to 2.0 tiles to compensate for lack of homing
+	proj.setup(target, stats.damage, 600.0, stats.color, 2.0, 0, 0)
+
+func _fire_slow_pulse():
+	# Apply slow to all in range
+	var targets = range_area.get_overlapping_areas()
+	for body in targets:
+		var enemy = body.get_parent() as Enemy
+		if enemy:
+			enemy.apply_slow(0.6, 2.0) # 0.6 factor, 2s duration
+	
+	# Visual ring
+	var nova = preload("res://scenes/Effects/NovaEffect.tscn").instantiate()
+	nova.global_position = global_position
+	nova.modulate = stats.color
+	nova.z_index = 15
+	get_tree().root.add_child(nova)
+
+func _spawn_impact_at(pos: Vector2, color: Color):
+	var impact_scene = preload("res://scenes/Effects/ImpactEffect.tscn")
+	var impact = impact_scene.instantiate()
+	impact.global_position = pos
+	impact.modulate = color
+	impact.z_index = 20
+	get_tree().root.add_child(impact)

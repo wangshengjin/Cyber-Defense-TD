@@ -1,0 +1,68 @@
+[gd_scene load_steps=10 format=3 uid="uid://e8j2q8x7k4l7"]
+
+[ext_resource type="Texture2D" uid="uid://t7x2q8x7k5l9" path="res://resources/ParticleTexture.tres" id="1_tex"]
+
+[sub_resource type="Gradient" id="Gradient_sparks"]
+colors = PackedColorArray(10, 10, 10, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_sparks"]
+gradient = SubResource("Gradient_sparks")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_sparks"]
+particle_flag_disable_z = true
+spread = 180.0
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 100.0
+initial_velocity_max = 200.0
+damping_min = 100.0
+damping_max = 100.0
+scale_min = 2.0
+scale_max = 3.0
+color_ramp = SubResource("GradientTexture1D_sparks")
+turbulence_enabled = true
+
+[sub_resource type="Gradient" id="Gradient_flash"]
+colors = PackedColorArray(5, 5, 5, 1, 0, 0, 0, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_flash"]
+gradient = SubResource("Gradient_flash")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_flash"]
+particle_flag_disable_z = true
+gravity = Vector3(0, 0, 0)
+scale_min = 10.0
+scale_max = 15.0
+color_ramp = SubResource("GradientTexture1D_flash")
+
+[sub_resource type="GDScript" id="GDScript_composite"]
+script/source = "extends Node2D
+
+func _ready():
+	for child in get_children():
+		if child is GPUParticles2D:
+			child.emitting = true
+	
+	await get_tree().create_timer(1.0).timeout
+	queue_free()
+"
+
+[node name="ImpactEffect" type="Node2D"]
+script = SubResource("GDScript_composite")
+
+[node name="Sparks" type="GPUParticles2D" parent="."]
+emitting = false
+amount = 24
+process_material = SubResource("ParticleProcessMaterial_sparks")
+texture = ExtResource("1_tex")
+lifetime = 0.6
+one_shot = true
+explosiveness = 1.0
+
+[node name="Flash" type="GPUParticles2D" parent="."]
+emitting = false
+amount = 1
+process_material = SubResource("ParticleProcessMaterial_flash")
+texture = ExtResource("1_tex")
+lifetime = 0.2
+one_shot = true
+explosiveness = 1.0

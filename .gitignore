@@ -1,24 +1,24 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+# Godot 4+ specific ignores
+.godot/
+*.translation
+export_presets.cfg
 
-node_modules
-dist
-dist-ssr
-*.local
+# Imported assets (automatic)
+*.import
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
+# Mono/C# ignores
+.mono/
+.vscode/
+*.csproj
 *.sln
-*.sw?
+*.suo
+*.user
+*.userprefs
+*.users
+*.mono
+data_*/
+mono_crash.*.json
+
+# System specific
+.DS_Store
+Thumbs.db

@@ -1,0 +1,19 @@
+[gd_resource type="ParticleProcessMaterial" load_steps=3 format=3 uid="uid://eak2q8x7k5n8"]
+
+[sub_resource type="Gradient" id="Gradient_core"]
+colors = PackedColorArray(4, 4, 4, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_core"]
+gradient = SubResource("Gradient_core")
+
+[resource]
+particle_flag_disable_z = true
+emission_shape = 1
+emission_sphere_radius = 2.0
+gravity = Vector3(0, 0, 0)
+scale_min = 3.0
+scale_max = 5.0
+color_ramp = SubResource("GradientTexture1D_core")
+turbulence_enabled = true
+turbulence_noise_strength = 0.5
+turbulence_noise_scale = 3.0
