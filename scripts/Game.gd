@@ -48,9 +48,13 @@ func _create_ghost_tower():
 	ghost_tower = Node2D.new()
 	var size = Constants.CELL_SIZE
 	
+	# Scale calculation
+	var scale_factor = float(Constants.CELL_SIZE) / float(AtlasUtils.TILE_SIZE)
+
 	# Base Sprite
 	var base_sprite = Sprite2D.new()
 	base_sprite.texture = AtlasUtils.get_tile(181)
+	base_sprite.scale = Vector2(scale_factor, scale_factor)
 	ghost_tower.add_child(base_sprite)
 	
 	# Turret Sprite
@@ -64,6 +68,7 @@ func _create_ghost_tower():
 	if tile_id != -1:
 		var turret_sprite = Sprite2D.new()
 		turret_sprite.texture = AtlasUtils.get_tile(tile_id)
+		turret_sprite.scale = Vector2(scale_factor, scale_factor)
 		ghost_tower.add_child(turret_sprite)
 
 	ghost_tower.modulate = Color(1, 1, 1, 0.5) # Initial transparency

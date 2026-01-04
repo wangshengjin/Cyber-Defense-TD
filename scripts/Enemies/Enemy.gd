@@ -36,25 +36,30 @@ func setup(enemy_type: Constants.EnemyType, wave_hp_multiplier: float):
 	
 	# Random offset to avoid stacking perfectly? PathFollow2D handles this if we spawn with delays.
 	loop = false
-	rotates = false
+	rotates = true
 
 func _create_visuals():
 	# Load tile from Atlas
 	var tile_id = -1
 	match type:
 		Constants.EnemyType.BASIC:
-			tile_id = 245 # Soldier
+			tile_id = 271 # Small Plane (Green)
 		Constants.EnemyType.FAST:
-			tile_id = 245 # Soldier (tinted later)
+			tile_id = 270 # Small Plane (Grey) - To distinguish from Basic
 		Constants.EnemyType.TANK:
-			tile_id = 268 # Tank
+			tile_id = 294 # Big Plane (Green)
 		Constants.EnemyType.BOSS:
-			tile_id = 268 # Tank (Big)
+			tile_id = 293 # Big Plane (Grey) - To distinguish from Tank
 	
 	if tile_id != -1 and sprite_node:
 		sprite_node.texture = AtlasUtils.get_tile(tile_id)
-		# Tint the sprite with the enemy color defined in Constants
-		sprite_node.modulate = stats.color
+		# Removed color tinting as requested by user. Use original sprite colors.
+		sprite_node.modulate = Color.WHITE
+		
+		# Scale sprites
+		# Planes might be wider.
+		var scale_factor = (float(Constants.CELL_SIZE) / float(AtlasUtils.TILE_SIZE)) * 1.3
+		sprite_node.scale = Vector2(scale_factor, scale_factor)
 	
 	# Hp Bar setup if we wanted nodes.
 	# But _draw is fine for HP bar overlay.

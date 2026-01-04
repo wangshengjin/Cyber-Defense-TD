@@ -76,6 +76,12 @@ func _create_visuals():
 	
 	# Base sprite (Generic base)
 	base_sprite.texture = AtlasUtils.get_tile(181) # 181 is a good base tile
+	
+	# Scale sprites to match CELL_SIZE based on AtlasUtils.TILE_SIZE
+	# TILE_SIZE is 64, CELL_SIZE is 40.
+	var scale_factor = float(Constants.CELL_SIZE) / float(AtlasUtils.TILE_SIZE)
+	base_sprite.scale = Vector2(scale_factor, scale_factor)
+	turret_sprite.scale = Vector2(scale_factor, scale_factor)
 
 
 func _draw():
