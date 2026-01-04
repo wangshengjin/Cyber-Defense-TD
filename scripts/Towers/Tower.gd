@@ -35,6 +35,23 @@ func _update_stats():
 	
 	stats.current_range = base_stats.range_tiles * Constants.CELL_SIZE
 
+func get_upgrade_cost() -> int:
+	var base_cost = Constants.TOWER_STATS[type].cost
+	# Upgrade cost is 1.5x initial cost * level? Or fixed? 
+	# Based on "Upgrade cost is 1.5x initial cost" and level logic
+	# Let's assume linear increase or fixed multiplier. 
+	# User code had: total_invest += cost * 1.5. 
+	# This implies each upgrade costs 1.5x Base Cost.
+	return int(base_cost * 1.5)
+
+func get_sell_value() -> int:
+	var base_cost = Constants.TOWER_STATS[type].cost
+	var total_invest = base_cost
+	for i in range(1, level):
+		total_invest += int(base_cost * 1.5)
+	
+	return int(total_invest * 0.7)
+
 func upgrade():
 	level += 1
 	_update_stats()
@@ -44,17 +61,7 @@ func upgrade():
 		shape.radius = stats.current_range
 
 func sell():
-	var cost = Constants.TOWER_STATS[type].cost
-	# 70% return of total investment.
-	# Total = Cost + (Level-1)*Cost*1.5 ?
-	# Wait, docs: "Upgrade cost is 1.5x initial cost".
-	# So level 1 cost: Base.
-	# Level 2 cost: Base + Base*1.5.
-	var total_invest = cost
-	for i in range(1, level):
-		total_invest += cost * 1.5
-	
-	GameManager.money += int(total_invest * 0.7)
+	GameManager.money += get_sell_value()
 	queue_free()
 
 func _create_visuals():
@@ -93,15 +100,14 @@ func _process(delta):
 		var target = _find_target()
 		if target:
 			# Rotate turret towards target
-			var angle = (target.global_position - global_position).angle()
-			# Add offset if sprite is initially facing up/right
-			# Kenney sprites usually face Right (0 degrees) or Up (-90).
-			# Assuming Right is 0 for these sprites.
-			turret_sprite.rotation = rotate_toward(turret_sprite.rotation, angle, delta * 5.0)
+			# Add 90 degrees (PI/2) offset because Kenney's sprites face Up, but 0 radians is Right
+			var target_angle = (target.global_position - global_position).angle() + PI / 2
 			
-			# Only fire if roughly facing target? Or just fire.
-			# For now just rotate visual and fire.
-			if abs(angle_difference(turret_sprite.rotation, angle)) < 0.5 or type == Constants.TowerType.SLOW:
+			# Use lerp_angle for smooth rotation handling wraparounds
+			turret_sprite.rotation = lerp_angle(turret_sprite.rotation, target_angle, delta * 10.0)
+			
+			# Fire if aiming roughly at target
+			if abs(angle_difference(turret_sprite.rotation, target_angle)) < 0.15 or type == Constants.TowerType.SLOW:
 				_fire(target)
 				cooldown_timer = stats.cooldown_ms / 1000.0
 func _create_range_sensor():

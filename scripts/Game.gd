@@ -9,25 +9,26 @@ extends Node2D
 var building_mode = false
 var selected_tower_type = null
 var ghost_tower: Node2D
+var selected_tower: Node2D = null
 
 func _ready():
 	hud.build_tower_requested.connect(_on_build_requested)
+	hud.upgrade_tower_requested.connect(_on_upgrade_tower)
+	hud.sell_tower_requested.connect(_on_sell_tower)
 	wave_manager.path_2d = $Path2D
 	GameManager.game_over.connect(_on_game_over)
 
 func _process(delta):
 	if building_mode:
 		_update_ghost_tower()
-		if Input.is_action_just_pressed("mouse_left"): # Default action? Godot usually 'ui_accept' or we need to add inputs. Assuming mouse click.
-			# Or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-			if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-				_try_place_tower()
 
-func _input(event):
+func _unhandled_input(event):
 	if building_mode and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_try_place_tower()
 	elif building_mode and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		_cancel_build()
+	elif not building_mode and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_handle_selection()
 
 func _on_build_requested(type):
 	if building_mode:
@@ -112,3 +113,38 @@ func _on_game_over():
 	var game_over_screen = preload("res://scenes/UI/GameOverScreen.tscn").instantiate()
 	$CanvasLayer.add_child(game_over_screen)
 	Engine.time_scale = 0
+
+func _handle_selection():
+	var mouse_pos = get_global_mouse_position()
+	var cell = map_manager.world_to_map(mouse_pos)
+	
+	if map_manager.towers.has(cell):
+		var tower = map_manager.towers[cell]
+		_select_tower(tower)
+	else:
+		_deselect_tower()
+
+func _select_tower(tower):
+	selected_tower = tower
+	hud.show_tower_controls(tower)
+
+func _deselect_tower():
+	selected_tower = null
+	hud.hide_tower_controls()
+
+func _on_upgrade_tower():
+	if selected_tower:
+		var cost = selected_tower.get_upgrade_cost()
+		if GameManager.money >= cost:
+			GameManager.money -= cost
+			selected_tower.upgrade()
+			hud.show_tower_controls(selected_tower) # Refresh info
+		else:
+			print("Not enough money to upgrade")
+
+func _on_sell_tower():
+	if selected_tower:
+		var cell = map_manager.world_to_map(selected_tower.global_position)
+		map_manager.remove_tower(cell)
+		selected_tower.sell()
+		_deselect_tower()

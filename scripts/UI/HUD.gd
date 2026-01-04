@@ -64,3 +64,37 @@ func _on_build_slow_pressed():
 
 func _on_build_sniper_pressed():
 	build_tower_requested.emit(Constants.TowerType.SNIPER)
+
+# Tower Control Panel Logic
+@onready var tower_panel = $TowerControlPanel
+@onready var tower_info_label = $TowerControlPanel/HBox/InfoLabel
+@onready var upgrade_btn = $TowerControlPanel/HBox/UpgradeBtn
+@onready var sell_btn = $TowerControlPanel/HBox/SellBtn
+
+signal upgrade_tower_requested
+signal sell_tower_requested
+
+func show_tower_controls(tower):
+	tower_panel.visible = true
+	
+	var info = "Lvl %d %s\nDmg: %.1f\nRng: %.1f" % [
+		tower.level,
+		Constants.TOWER_STATS[tower.type].name,
+		tower.stats.damage,
+		tower.stats.range_tiles
+	]
+	tower_info_label.text = info
+	
+	upgrade_btn.text = "Upgrade ($%d)" % tower.get_upgrade_cost()
+	sell_btn.text = "Sell ($%d)" % tower.get_sell_value()
+	
+	# Disable upgrade if max level? (Optional)
+	
+func hide_tower_controls():
+	tower_panel.visible = false
+
+func _on_upgrade_pressed():
+	upgrade_tower_requested.emit()
+
+func _on_sell_pressed():
+	sell_tower_requested.emit()
