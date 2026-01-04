@@ -56,7 +56,8 @@ func _spawn_enemy():
 		spawning_active = false
 		return
 	
-	var enemy = preload("res://scenes/Enemies/BaseEnemy.tscn").instantiate()
+	var enemy_scene = preload("res://scenes/Enemies/BaseEnemy.tscn")
+	var enemy = enemy_scene.instantiate()
 	path_2d.add_child(enemy)
 	enemy.setup(current_wave_config.enemyType, current_wave_config.hpMultiplier)
 	

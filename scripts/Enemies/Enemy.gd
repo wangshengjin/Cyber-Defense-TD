@@ -16,9 +16,10 @@ var frozen_factor: float = 1.0
 var frozen_timer: float = 0.0
 
 # Visuals
-var sprite: ColorRect
-var hp_bar_bg: ColorRect
-var hp_bar_fill: ColorRect
+# Visuals
+@onready var sprite_node = $Sprite2D
+@onready var hitbox = $Hitbox
+@onready var hp_bar_bg = ColorRect.new() # We can keep manual drawing for HP bar or add nodes. Manual is fine for simple overlay.
 
 func setup(enemy_type: Constants.EnemyType, wave_hp_multiplier: float):
 	type = enemy_type
@@ -38,31 +39,33 @@ func setup(enemy_type: Constants.EnemyType, wave_hp_multiplier: float):
 	rotates = false
 
 func _create_visuals():
-	# Visuals are handled in _draw
-	queue_redraw()
+	# Load tile from Atlas
+	var tile_id = -1
+	match type:
+		Constants.EnemyType.BASIC:
+			tile_id = 245 # Soldier
+		Constants.EnemyType.FAST:
+			tile_id = 245 # Soldier (tinted later)
+		Constants.EnemyType.TANK:
+			tile_id = 268 # Tank
+		Constants.EnemyType.BOSS:
+			tile_id = 268 # Tank (Big)
 	
-	# Hitbox (Restored)
-	var size = Constants.CELL_SIZE
-	var area = Area2D.new()
-	var shape = CollisionShape2D.new()
-	var circle = CircleShape2D.new()
-	circle.radius = size/4 # Radius
-	shape.shape = circle
-	area.add_child(shape)
-	add_child(area)
+	if tile_id != -1 and sprite_node:
+		sprite_node.texture = AtlasUtils.get_tile(tile_id)
+		# Tint the sprite with the enemy color defined in Constants
+		sprite_node.modulate = stats.color
+	
+	# Hp Bar setup if we wanted nodes.
+	# But _draw is fine for HP bar overlay.
+	queue_redraw()
 
 func _draw():
+	# Draw HP Bar only
 	var size = Constants.CELL_SIZE
 	var radius = size * 0.3
 	
-	# Draw glow/shadow (Neon effect)
-	draw_circle(Vector2.ZERO, radius + 2, stats.color.darkened(0.5))
-	
-	# Draw main body
-	draw_circle(Vector2.ZERO, radius, stats.color)
-	
-	# Draw inner detail based on type maybe? or just a white center for 'core'
-	draw_circle(Vector2.ZERO, radius * 0.5, Color.WHITE)
+	# No circle drawing for body anymore
 	
 	# Draw HP Bar manually so it follows position correctly
 	var bar_width = size * 0.8
@@ -98,8 +101,7 @@ func _process(delta):
 		frozen_timer -= delta
 		if frozen_timer <= 0:
 			frozen_factor = 1.0
-			# sprite.color = stats.color # Old logic
-			queue_redraw()
+			sprite_node.modulate = stats.color # Restore original color
 	
 	# Check end
 	if progress_ratio >= 1.0:
@@ -118,7 +120,7 @@ func take_damage(amount: float):
 func apply_slow(factor: float, duration: float):
 	if factor < frozen_factor: # Apply strongest slow
 		frozen_factor = factor
-		queue_redraw()
+		sprite_node.modulate = Color(0.5, 0.5, 1.0, 1.0) # Blue tint
 	frozen_timer = max(frozen_timer, duration)
 
 func _spawn_death_particles():

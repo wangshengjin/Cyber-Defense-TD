@@ -42,6 +42,7 @@ func setup(p_target: Enemy, p_damage: float, p_speed: float, p_color: Color, p_s
 	if core: core.emitting = false
 	
 	if sprite:
+		sprite.texture = AtlasUtils.get_tile(272) # Generic bullet/dot
 		sprite.visible = true # Show sprite, disable particles
 
 func _physics_process(delta):

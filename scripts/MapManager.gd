@@ -12,9 +12,14 @@ var towers: Dictionary = {} # Vector2i -> Tower Node
 var path_set: Dictionary = {} # Vector2i -> bool
 
 func _ready():
+	_init_grid()
 	# Initialize path set for fast lookup
 	_init_path_set()
 	queue_redraw()
+
+func _init_grid():
+	# This function can be used for any grid-related initialization if needed
+	pass
 
 func _init_path_set():
 	var coords = Constants.PATH_COORDINATES
@@ -28,7 +33,7 @@ func _init_path_set():
 	
 	for i in range(coords.size() - 1):
 		var start = coords[i]
-		var end = coords[i+1]
+		var end = coords[i + 1]
 		
 		var current = start
 		path_set[start] = true
@@ -41,9 +46,17 @@ func _init_path_set():
 			path_set[current] = true
 	
 	# Add the very last point too if not covered (it is covered by loop usually)
-	path_set[coords[coords.size()-1]] = true
+	path_set[coords[coords.size() - 1]] = true
 
 func _draw():
+	# Draw background tiles (Grass)
+	var bg_texture = AtlasUtils.get_tile(24)
+	var size = Constants.CELL_SIZE
+	
+	for x in range(Constants.MAP_WIDTH):
+		for y in range(Constants.MAP_HEIGHT):
+			draw_texture_rect(bg_texture, Rect2(x * size, y * size, size, size), false)
+
 	# Draw Grid
 	for x in range(Constants.MAP_WIDTH + 1):
 		draw_line(Vector2(x * Constants.CELL_SIZE, 0), Vector2(x * Constants.CELL_SIZE, Constants.MAP_HEIGHT * Constants.CELL_SIZE), Constants.COLORS.GRID_BORDER, 1.0)

@@ -11,8 +11,9 @@ var allies_container: Node # To find targets
 var projectiles_container: Node
 
 # Visuals
-var base_sprite: ColorRect
-var turret_sprite: ColorRect
+@onready var visuals = $Visuals
+@onready var base_sprite = $Visuals/BaseSprite
+@onready var turret_sprite = $Visuals/TurretSprite
 
 func setup(p_type: Constants.TowerType, p_projectiles_container: Node):
 	type = p_type
@@ -57,41 +58,46 @@ func sell():
 	queue_free()
 
 func _create_visuals():
-	queue_redraw()
-
-func _draw():
-	var size = Constants.CELL_SIZE
-	var half_size = size / 2.0
-	
-	# Base
-	draw_rect(Rect2(-half_size + 2, -half_size + 2, size - 4, size - 4), stats.color.darkened(0.7))
-	draw_rect(Rect2(-half_size + 2, -half_size + 2, size - 4, size - 4), stats.color, false, 2.0) # Border
-	
-	# Turret
+	# Load textures using AtlasUtils (Tilesheet)
+	# IDs based on Kenney TD pack
+	var tile_id = -1
 	match type:
 		Constants.TowerType.LASER:
-			draw_circle(Vector2.ZERO, size * 0.25, stats.color)
-			draw_circle(Vector2.ZERO, size * 0.1, Color.WHITE)
+			tile_id = 250
 		Constants.TowerType.CANNON:
-			draw_rect(Rect2(-10, -10, 20, 20), stats.color)
-			draw_line(Vector2.ZERO, Vector2(15, 0).rotated(rotation), stats.color.lightened(0.2), 6.0) # Canon barrel? No rotation logic yet.
+			tile_id = 206
 		Constants.TowerType.SLOW:
-			draw_circle(Vector2.ZERO, size * 0.3, stats.color.lightened(0.5))
-			draw_arc(Vector2.ZERO, size * 0.4, 0, TAU, 16, stats.color, 2.0)
+			tile_id = 203
 		Constants.TowerType.SNIPER:
-			draw_rect(Rect2(-8, -8, 16, 16), stats.color)
-			draw_line(Vector2.ZERO, Vector2(20, 0), stats.color, 3.0) # Barrel
+			tile_id = 205
+	
+	if tile_id != -1:
+		turret_sprite.texture = AtlasUtils.get_tile(tile_id)
+	
+	# Base sprite (Generic base)
+	base_sprite.texture = AtlasUtils.get_tile(181) # 181 is a good base tile
 
-	# Level Indicator
-	# draw_string(ThemeDB.get_fallback_font(), Vector2(-5, 5), str(level)) 
+
+func _draw():
+	pass # Visuals handled by Sprites now
 
 func _process(delta):
 	cooldown_timer -= delta
 	if cooldown_timer <= 0:
 		var target = _find_target()
 		if target:
-			_fire(target)
-			cooldown_timer = stats.cooldown_ms / 1000.0
+			# Rotate turret towards target
+			var angle = (target.global_position - global_position).angle()
+			# Add offset if sprite is initially facing up/right
+			# Kenney sprites usually face Right (0 degrees) or Up (-90).
+			# Assuming Right is 0 for these sprites.
+			turret_sprite.rotation = rotate_toward(turret_sprite.rotation, angle, delta * 5.0)
+			
+			# Only fire if roughly facing target? Or just fire.
+			# For now just rotate visual and fire.
+			if abs(angle_difference(turret_sprite.rotation, angle)) < 0.5 or type == Constants.TowerType.SLOW:
+				_fire(target)
+				cooldown_timer = stats.cooldown_ms / 1000.0
 func _create_range_sensor():
 	range_area = Area2D.new()
 	var shape = CollisionShape2D.new()

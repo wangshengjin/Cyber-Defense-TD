@@ -6,6 +6,11 @@ extends Control
 @onready var next_wave_btn = $BottomPanel/NextWaveBtn
 @onready var speed_btn = $BottomPanel/SpeedBtn
 
+@onready var build_laser_btn = $BottomPanel/HBox/BuildLaser
+@onready var build_cannon_btn = $BottomPanel/HBox/BuildCannon
+@onready var build_slow_btn = $BottomPanel/HBox/BuildSlow
+@onready var build_sniper_btn = $BottomPanel/HBox/BuildSniper
+
 signal build_tower_requested(type)
 
 func _ready():
@@ -16,6 +21,15 @@ func _ready():
 	_on_money_changed(GameManager.money)
 	_on_lives_changed(GameManager.lives)
 	_on_wave_changed(GameManager.wave)
+	
+	_setup_icons()
+
+func _setup_icons():
+	# Tower Icons (using Turret tiles)
+	build_laser_btn.icon = AtlasUtils.get_tile(250)
+	build_cannon_btn.icon = AtlasUtils.get_tile(206)
+	build_slow_btn.icon = AtlasUtils.get_tile(203)
+	build_sniper_btn.icon = AtlasUtils.get_tile(205)
 
 func _on_money_changed(new_amount):
 	money_label.text = "Money: $%d" % new_amount

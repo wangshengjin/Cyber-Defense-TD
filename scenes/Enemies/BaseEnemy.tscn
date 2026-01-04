@@ -1,8 +1,18 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3 uid="uid://baseenemy_scene"]
 
-[ext_resource type="Script" path="res://scripts/Enemies/Enemy.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/Enemies/Enemy.gd" id="1_enemy"]
 
-[node name="BaseEnemy" type="PathFollow2D"]
+[sub_resource type="CircleShape2D" id="CircleShape2D_hitbox"]
+radius = 16.0
+
+[node name="Enemy" type="PathFollow2D"]
 rotates = false
 loop = false
-script = ExtResource("1_script")
+script = ExtResource("1_enemy")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+
+[node name="Hitbox" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+shape = SubResource("CircleShape2D_hitbox")

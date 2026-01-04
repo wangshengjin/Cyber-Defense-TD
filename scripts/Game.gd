@@ -13,6 +13,7 @@ var ghost_tower: Node2D
 func _ready():
 	hud.build_tower_requested.connect(_on_build_requested)
 	wave_manager.path_2d = $Path2D
+	GameManager.game_over.connect(_on_game_over)
 
 func _process(delta):
 	if building_mode:
@@ -46,17 +47,26 @@ func _on_build_requested(type):
 func _create_ghost_tower():
 	ghost_tower = Node2D.new()
 	var size = Constants.CELL_SIZE
-	var rect = ColorRect.new()
-	rect.size = Vector2(size, size)
-	rect.position = Vector2(-size / 2, -size / 2)
-	rect.color = Color(1, 1, 1, 0.5) # Semi-transparent
-	ghost_tower.add_child(rect)
 	
-	# Range circle
-	var stats = Constants.TOWER_STATS[selected_tower_type]
-	var range_circle = Line2D.new() # Or draw in _draw?
-	# Simple drawing in script is harder for generic Node2D. 
-	# Let's just use ghost_tower position in MapManager to valid.
+	# Base Sprite
+	var base_sprite = Sprite2D.new()
+	base_sprite.texture = AtlasUtils.get_tile(181)
+	ghost_tower.add_child(base_sprite)
+	
+	# Turret Sprite
+	var tile_id = -1
+	match selected_tower_type:
+		Constants.TowerType.LASER: tile_id = 250
+		Constants.TowerType.CANNON: tile_id = 206
+		Constants.TowerType.SLOW: tile_id = 203
+		Constants.TowerType.SNIPER: tile_id = 205
+	
+	if tile_id != -1:
+		var turret_sprite = Sprite2D.new()
+		turret_sprite.texture = AtlasUtils.get_tile(tile_id)
+		ghost_tower.add_child(turret_sprite)
+
+	ghost_tower.modulate = Color(1, 1, 1, 0.5) # Initial transparency
 	add_child(ghost_tower)
 
 func _update_ghost_tower():
@@ -78,7 +88,8 @@ func _try_place_tower():
 		_cancel_build()
 
 func _create_real_tower() -> Node2D:
-	var tower = preload("res://scripts/Towers/Tower.gd").new() # Should use scene...
+	var tower_scene = preload("res://scenes/Towers/BaseTower.tscn")
+	var tower = tower_scene.instantiate()
 	# Using script directly and adding as child
 	# Need to set unique Name or just add child
 	towers_container.add_child(tower)
@@ -91,3 +102,8 @@ func _cancel_build():
 	if ghost_tower:
 		ghost_tower.queue_free()
 		ghost_tower = null
+
+func _on_game_over():
+	var game_over_screen = preload("res://scenes/UI/GameOverScreen.tscn").instantiate()
+	$CanvasLayer.add_child(game_over_screen)
+	Engine.time_scale = 0

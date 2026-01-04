@@ -100,20 +100,28 @@ theme_override_constants/separation = 10
 alignment = 1
 
 [node name="BuildLaser" type="Button" parent="CanvasLayer/HUD/BottomPanel/HBox"]
+custom_minimum_size = Vector2(160, 60)
 layout_mode = 2
 text = "Laser ($100)"
+expand_icon = true
 
 [node name="BuildCannon" type="Button" parent="CanvasLayer/HUD/BottomPanel/HBox"]
+custom_minimum_size = Vector2(160, 60)
 layout_mode = 2
 text = "Cannon ($250)"
+expand_icon = true
 
 [node name="BuildSlow" type="Button" parent="CanvasLayer/HUD/BottomPanel/HBox"]
+custom_minimum_size = Vector2(160, 60)
 layout_mode = 2
 text = "Slow ($150)"
+expand_icon = true
 
 [node name="BuildSniper" type="Button" parent="CanvasLayer/HUD/BottomPanel/HBox"]
+custom_minimum_size = Vector2(160, 60)
 layout_mode = 2
 text = "Sniper ($400)"
+expand_icon = true
 
 [node name="VSeparator" type="VSeparator" parent="CanvasLayer/HUD/BottomPanel/HBox"]
 layout_mode = 2

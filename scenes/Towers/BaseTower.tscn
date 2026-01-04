@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://basetower_scene"]
+
+[ext_resource type="Script" path="res://scripts/Towers/Tower.gd" id="1_tower"]
+
+[node name="Tower" type="Node2D"]
+script = ExtResource("1_tower")
+
+[node name="Visuals" type="Node2D" parent="."]
+
+[node name="BaseSprite" type="Sprite2D" parent="Visuals"]
+
+[node name="TurretSprite" type="Sprite2D" parent="Visuals"]
+position = Vector2(0, 0)
