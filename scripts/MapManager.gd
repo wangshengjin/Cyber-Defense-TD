@@ -17,9 +17,18 @@ func _ready():
 	_init_path_set()
 	queue_redraw()
 
+var background_tiles: Dictionary = {}
+
 func _init_grid():
-	# This function can be used for any grid-related initialization if needed
-	pass
+	# Initialize randomized background tiles
+	# Using likely grass variants from Kenney pack: 
+	# 24: Standard Grass
+	var variants = [24, 24, 24, 24, 24, 25] # mostly 24, occassional variant
+	
+	for x in range(Constants.MAP_WIDTH):
+		for y in range(Constants.MAP_HEIGHT):
+			var tile_id = variants.pick_random()
+			background_tiles[Vector2i(x, y)] = tile_id
 
 func _init_path_set():
 	var coords = Constants.PATH_COORDINATES
@@ -49,13 +58,24 @@ func _init_path_set():
 	path_set[coords[coords.size() - 1]] = true
 
 func _draw():
-	# Draw background tiles (Grass)
-	var bg_texture = AtlasUtils.get_tile(24)
+	# Draw randomized background tiles
 	var size = Constants.CELL_SIZE
 	
 	for x in range(Constants.MAP_WIDTH):
 		for y in range(Constants.MAP_HEIGHT):
+			var tile_id = 24
+			var key = Vector2i(x, y)
+			if background_tiles.has(key):
+				tile_id = background_tiles[key]
+			
+			var bg_texture = AtlasUtils.get_tile(tile_id)
 			draw_texture_rect(bg_texture, Rect2(x * size, y * size, size, size), false)
+
+	# Draw Path Tiles
+	# Tile 50 is generic dirt/brown tile
+	var path_texture = AtlasUtils.get_tile(50)
+	for cell in path_set:
+		draw_texture_rect(path_texture, Rect2(cell.x * size, cell.y * size, size, size), false)
 
 	# Draw Grid
 	for x in range(Constants.MAP_WIDTH + 1):
@@ -63,14 +83,6 @@ func _draw():
 	
 	for y in range(Constants.MAP_HEIGHT + 1):
 		draw_line(Vector2(0, y * Constants.CELL_SIZE), Vector2(Constants.MAP_WIDTH * Constants.CELL_SIZE, y * Constants.CELL_SIZE), Constants.COLORS.GRID_BORDER, 1.0)
-
-	# Draw Path
-	if Constants.PATH_COORDINATES.size() > 1:
-		var points = PackedVector2Array()
-		for p in Constants.PATH_COORDINATES:
-			points.append(map_to_world(p))
-		
-		draw_polyline(points, Constants.COLORS.PATH_DOT, 2.0)
 
 func map_to_world(grid_pos: Vector2i) -> Vector2:
 	return Vector2(grid_pos.x * Constants.CELL_SIZE + Constants.CELL_SIZE / 2.0, grid_pos.y * Constants.CELL_SIZE + Constants.CELL_SIZE / 2.0)

@@ -42,19 +42,26 @@ func setup(p_target: Enemy, p_damage: float, p_speed: float, p_color: Color, p_s
 	if core: core.emitting = false
 	
 	if sprite:
-		sprite.texture = AtlasUtils.get_tile(272) # Generic bullet/dot
-		# Scale to match CELL_SIZE, maybe slightly smaller? 
-		# If we scale to scale_factor, it's 40x40. That's a huge bullet.
-		# Let's scale it to 0.5 of a cell size for better visuals.
+		# Use Rocket/Missile texture for Cannon
+		# Tile ID 251 is "Missile small", 252 is "Missile Large"
+		sprite.texture = AtlasUtils.get_tile(251)
+		
+		# Scale to match CELL_SIZE
+		# TILE_SIZE is 64, CELL_SIZE is 40.
+		# Rocket is tall, let's keep it visible.
 		var scale_factor = float(Constants.CELL_SIZE) / float(AtlasUtils.TILE_SIZE)
-		sprite.scale = Vector2(scale_factor, scale_factor) * 0.5
-		sprite.visible = true # Show sprite, disable particles
+		sprite.scale = Vector2(scale_factor, scale_factor) * 0.8
+		sprite.visible = true
+	
+	# Initial rotation
+	var direction = (target_position - global_position).normalized()
+	rotation = direction.angle() + PI / 2
 
 func _physics_process(delta):
 	# Linear Movement: Move towards target_position
 	var direction = (target_position - global_position).normalized()
 	position += direction * speed * delta
-	look_at(target_position)
+	# Fixed rotation set in setup, linear movement doesn't curve
 	
 	# Check distance to DESTINATION, not target entity
 	if global_position.distance_to(target_position) < 10.0:
