@@ -156,44 +156,47 @@ text = "1x Speed"
 [node name="TowerControlPanel" type="Panel" parent="CanvasLayer/HUD"]
 visible = false
 layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -250.0
-offset_top = -180.0
-offset_right = 250.0
-offset_bottom = -80.0
-grow_horizontal = 2
-grow_vertical = 0
+offset_left = 0.0
+offset_top = 80.0
+offset_right = 0.0
+offset_bottom = -100.0
+grow_horizontal = 0
+grow_vertical = 2
 
-[node name="HBox" type="HBoxContainer" parent="CanvasLayer/HUD/TowerControlPanel"]
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/HUD/TowerControlPanel"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 15.0
+offset_top = 15.0
+offset_right = -15.0
+offset_bottom = -15.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 20
-alignment = 1
+theme_override_constants/separation = 15
 
-[node name="InfoLabel" type="Label" parent="CanvasLayer/HUD/TowerControlPanel/HBox"]
+[node name="InfoLabel" type="Label" parent="CanvasLayer/HUD/TowerControlPanel/VBox"]
 layout_mode = 2
 text = "Info"
+autowrap_mode = 3
 
-[node name="UpgradeBtn" type="Button" parent="CanvasLayer/HUD/TowerControlPanel/HBox"]
-custom_minimum_size = Vector2(120, 0)
+[node name="UpgradeBtn" type="Button" parent="CanvasLayer/HUD/TowerControlPanel/VBox"]
+custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 text = "Upgrade"
 
-[node name="SellBtn" type="Button" parent="CanvasLayer/HUD/TowerControlPanel/HBox"]
-custom_minimum_size = Vector2(100, 0)
+[node name="SellBtn" type="Button" parent="CanvasLayer/HUD/TowerControlPanel/VBox"]
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 text = "Sell"
 
-[connection signal="pressed" from="CanvasLayer/HUD/TowerControlPanel/HBox/UpgradeBtn" to="CanvasLayer/HUD" method="_on_upgrade_pressed"]
-[connection signal="pressed" from="CanvasLayer/HUD/TowerControlPanel/HBox/SellBtn" to="CanvasLayer/HUD" method="_on_sell_pressed"]
+[connection signal="pressed" from="CanvasLayer/HUD/TowerControlPanel/VBox/UpgradeBtn" to="CanvasLayer/HUD" method="_on_upgrade_pressed"]
+[connection signal="pressed" from="CanvasLayer/HUD/TowerControlPanel/VBox/SellBtn" to="CanvasLayer/HUD" method="_on_sell_pressed"]
 [connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildLaser" to="CanvasLayer/HUD" method="_on_build_laser_pressed"]
 [connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildCannon" to="CanvasLayer/HUD" method="_on_build_cannon_pressed"]
 [connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildSlow" to="CanvasLayer/HUD" method="_on_build_slow_pressed"]

@@ -59,6 +59,8 @@ func upgrade():
 	if range_area:
 		var shape = range_area.get_child(0).shape as CircleShape2D
 		shape.radius = stats.current_range
+	if show_range_indicator:
+		queue_redraw()
 
 func sell():
 	GameManager.money += get_sell_value()
@@ -92,7 +94,18 @@ func _create_visuals():
 
 
 func _draw():
-	pass # Visuals handled by Sprites now
+	if show_range_indicator:
+		var col = stats.color
+		col.a = 0.1
+		draw_circle(Vector2.ZERO, stats.current_range, col)
+		col.a = 0.5
+		draw_arc(Vector2.ZERO, stats.current_range, 0, TAU, 64, col, 2.0)
+
+var show_range_indicator: bool = false
+
+func set_show_range(show: bool):
+	show_range_indicator = show
+	queue_redraw()
 
 func _process(delta):
 	cooldown_timer -= delta

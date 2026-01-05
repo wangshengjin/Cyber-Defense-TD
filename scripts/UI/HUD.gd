@@ -23,6 +23,11 @@ func _ready():
 	_on_wave_changed(GameManager.wave)
 	
 	_setup_icons()
+	
+	# Init Tower Panel State (Hidden to right)
+	tower_panel.offset_left = 0
+	tower_panel.offset_right = 250
+	tower_panel.visible = false
 
 func _setup_icons():
 	# Tower Icons (using Turret tiles)
@@ -67,9 +72,11 @@ func _on_build_sniper_pressed():
 
 # Tower Control Panel Logic
 @onready var tower_panel = $TowerControlPanel
-@onready var tower_info_label = $TowerControlPanel/HBox/InfoLabel
-@onready var upgrade_btn = $TowerControlPanel/HBox/UpgradeBtn
-@onready var sell_btn = $TowerControlPanel/HBox/SellBtn
+@onready var tower_info_label = $TowerControlPanel/VBox/InfoLabel
+@onready var upgrade_btn = $TowerControlPanel/VBox/UpgradeBtn
+@onready var sell_btn = $TowerControlPanel/VBox/SellBtn
+
+var tween: Tween
 
 signal upgrade_tower_requested
 signal sell_tower_requested
@@ -88,10 +95,17 @@ func show_tower_controls(tower):
 	upgrade_btn.text = "Upgrade ($%d)" % tower.get_upgrade_cost()
 	sell_btn.text = "Sell ($%d)" % tower.get_sell_value()
 	
-	# Disable upgrade if max level? (Optional)
-	
+	if tween: tween.kill()
+	tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tween.tween_property(tower_panel, "offset_left", -250, 0.3)
+	tween.parallel().tween_property(tower_panel, "offset_right", 0, 0.3)
+
 func hide_tower_controls():
-	tower_panel.visible = false
+	if tween: tween.kill()
+	tween = create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
+	tween.tween_property(tower_panel, "offset_left", 0, 0.3)
+	tween.parallel().tween_property(tower_panel, "offset_right", 250, 0.3)
+	tween.tween_callback(func(): tower_panel.visible = false)
 
 func _on_upgrade_pressed():
 	upgrade_tower_requested.emit()

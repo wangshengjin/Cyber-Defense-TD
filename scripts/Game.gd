@@ -72,6 +72,12 @@ func _create_ghost_tower():
 		turret_sprite.scale = Vector2(scale_factor, scale_factor)
 		ghost_tower.add_child(turret_sprite)
 
+	# Range Indicator
+	var range_indicator = preload("res://scripts/UI/RangeIndicator.gd").new()
+	range_indicator.radius = Constants.TOWER_STATS[selected_tower_type].range_tiles * Constants.CELL_SIZE
+	range_indicator.color = Constants.TOWER_STATS[selected_tower_type].color
+	ghost_tower.add_child(range_indicator)
+
 	ghost_tower.modulate = Color(1, 1, 1, 0.5) # Initial transparency
 	add_child(ghost_tower)
 
@@ -81,9 +87,13 @@ func _update_ghost_tower():
 	ghost_tower.position = map_manager.map_to_world(cell)
 	
 	if map_manager.is_valid_build_pos(cell):
-		ghost_tower.modulate = Constants.COLORS.HOVER_VALID
+		var col = Constants.COLORS.HOVER_VALID
+		col.a = 0.5
+		ghost_tower.modulate = col
 	else:
-		ghost_tower.modulate = Constants.COLORS.HOVER_INVALID
+		var col = Constants.COLORS.HOVER_INVALID
+		col.a = 0.5
+		ghost_tower.modulate = col
 
 func _try_place_tower():
 	var mouse_pos = get_global_mouse_position()
@@ -125,10 +135,16 @@ func _handle_selection():
 		_deselect_tower()
 
 func _select_tower(tower):
+	if selected_tower and selected_tower != tower:
+		selected_tower.set_show_range(false)
+		
 	selected_tower = tower
+	selected_tower.set_show_range(true)
 	hud.show_tower_controls(tower)
 
 func _deselect_tower():
+	if selected_tower:
+		selected_tower.set_show_range(false)
 	selected_tower = null
 	hud.hide_tower_controls()
 
