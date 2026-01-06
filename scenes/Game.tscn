@@ -1,10 +1,11 @@
 [gd_scene load_steps=7 format=3 uid="uid://b8y2q8x7k4l3"]
 
-[ext_resource type="Script" path="res://scripts/Game.gd" id="1_game"]
-[ext_resource type="Script" path="res://scripts/MapManager.gd" id="2_map"]
-[ext_resource type="Script" path="res://scripts/WaveManager.gd" id="3_wave"]
-[ext_resource type="Script" path="res://scripts/UI/HUD.gd" id="4_hud"]
-[ext_resource type="Environment" uid="uid://c9k3r8x7k5m6" path="res://resources/CyberEnvironment.tres" id="5_env"]
+[ext_resource type="Script" uid="uid://ud1gywebnmn" path="res://scripts/Game.gd" id="1_game"]
+[ext_resource type="Script" uid="uid://dcehsdkw06ukw" path="res://scripts/MapManager.gd" id="2_map"]
+[ext_resource type="Script" uid="uid://ct7vwy5a7x4vd" path="res://scripts/WaveManager.gd" id="3_wave"]
+[ext_resource type="Script" uid="uid://ik5lngdrgkkt" path="res://scripts/UI/HUD.gd" id="4_hud"]
+[ext_resource type="Environment" uid="uid://dak3r8x7k5m6" path="res://resources/CyberEnvironment.tres" id="5_env"]
+[ext_resource type="PackedScene" path="res://scenes/GameMap.tscn" id="6_gamemap"]
 
 [sub_resource type="Curve2D" id="Curve2D_path"]
 _data = {
@@ -24,6 +25,8 @@ environment = ExtResource("5_env")
 
 [node name="MapManager" type="Node2D" parent="."]
 script = ExtResource("2_map")
+
+[node name="GameMap" parent="MapManager" instance=ExtResource("6_gamemap")]
 
 [node name="Path2D" type="Path2D" parent="."]
 curve = SubResource("Curve2D_path")
@@ -160,9 +163,7 @@ anchors_preset = 11
 anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 0.0
 offset_top = 80.0
-offset_right = 0.0
 offset_bottom = -100.0
 grow_horizontal = 0
 grow_vertical = 2
@@ -195,11 +196,11 @@ custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 text = "Sell"
 
-[connection signal="pressed" from="CanvasLayer/HUD/TowerControlPanel/VBox/UpgradeBtn" to="CanvasLayer/HUD" method="_on_upgrade_pressed"]
-[connection signal="pressed" from="CanvasLayer/HUD/TowerControlPanel/VBox/SellBtn" to="CanvasLayer/HUD" method="_on_sell_pressed"]
 [connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildLaser" to="CanvasLayer/HUD" method="_on_build_laser_pressed"]
 [connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildCannon" to="CanvasLayer/HUD" method="_on_build_cannon_pressed"]
 [connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildSlow" to="CanvasLayer/HUD" method="_on_build_slow_pressed"]
 [connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/HBox/BuildSniper" to="CanvasLayer/HUD" method="_on_build_sniper_pressed"]
 [connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/NextWaveBtn" to="CanvasLayer/HUD" method="_on_next_wave_pressed"]
 [connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/SpeedBtn" to="CanvasLayer/HUD" method="_on_speed_toggle"]
+[connection signal="pressed" from="CanvasLayer/HUD/TowerControlPanel/VBox/UpgradeBtn" to="CanvasLayer/HUD" method="_on_upgrade_pressed"]
+[connection signal="pressed" from="CanvasLayer/HUD/TowerControlPanel/VBox/SellBtn" to="CanvasLayer/HUD" method="_on_sell_pressed"]

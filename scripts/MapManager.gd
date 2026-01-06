@@ -11,13 +11,31 @@ signal tower_placed(cell_pos: Vector2i, type: Constants.TowerType)
 var towers: Dictionary = {} # Vector2i -> Tower Node
 var path_set: Dictionary = {} # Vector2i -> bool
 
+var tile_map_layer: TileMapLayer
+var tile_set_source_id = 0
+var background_tiles: Dictionary = {}
+
 func _ready():
+	tile_map_layer = $GameMap
+	if not tile_map_layer:
+		push_error("GameMap node not found in MapManager!")
+		return
+		
+	# Ensure Source ID is set correctly (assuming 0 from our generator)
+	tile_set_source_id = 0
+	
 	_init_grid()
 	# Initialize path set for fast lookup
 	_init_path_set()
 	queue_redraw()
 
-var background_tiles: Dictionary = {}
+# Removed _init_tile_map_layer as it's now a scene instance
+
+func _set_tile_cell(pos: Vector2i, tile_id: int):
+	var cols = AtlasUtils.COLUMNS
+	var atlas_coords = Vector2i(tile_id % cols, int(tile_id / cols))
+	tile_map_layer.set_cell(pos, tile_set_source_id, atlas_coords)
+
 
 func _init_grid():
 	# Initialize randomized background tiles
@@ -29,6 +47,7 @@ func _init_grid():
 		for y in range(Constants.MAP_HEIGHT):
 			var tile_id = variants.pick_random()
 			background_tiles[Vector2i(x, y)] = tile_id
+			_set_tile_cell(Vector2i(x, y), tile_id)
 
 func _init_path_set():
 	var coords = Constants.PATH_COORDINATES
@@ -46,6 +65,7 @@ func _init_path_set():
 		
 		var current = start
 		path_set[start] = true
+		_set_tile_cell(start, 50)
 		
 		while current != end:
 			if current.x < end.x: current.x += 1
@@ -53,30 +73,14 @@ func _init_path_set():
 			elif current.y < end.y: current.y += 1
 			elif current.y > end.y: current.y -= 1
 			path_set[current] = true
+			_set_tile_cell(current, 50)
 	
 	# Add the very last point too if not covered (it is covered by loop usually)
 	path_set[coords[coords.size() - 1]] = true
+	_set_tile_cell(coords[coords.size() - 1], 50)
 
 func _draw():
-	# Draw randomized background tiles
-	var size = Constants.CELL_SIZE
-	
-	for x in range(Constants.MAP_WIDTH):
-		for y in range(Constants.MAP_HEIGHT):
-			var tile_id = 24
-			var key = Vector2i(x, y)
-			if background_tiles.has(key):
-				tile_id = background_tiles[key]
-			
-			var bg_texture = AtlasUtils.get_tile(tile_id)
-			draw_texture_rect(bg_texture, Rect2(x * size, y * size, size, size), false)
-
-	# Draw Path Tiles
-	# Tile 50 is generic dirt/brown tile
-	var path_texture = AtlasUtils.get_tile(50)
-	for cell in path_set:
-		draw_texture_rect(path_texture, Rect2(cell.x * size, cell.y * size, size, size), false)
-
+	# Draw Randomized Background Tiles and Path Tiles are now handled by TileMapLayer
 	# Draw Grid
 	for x in range(Constants.MAP_WIDTH + 1):
 		draw_line(Vector2(x * Constants.CELL_SIZE, 0), Vector2(x * Constants.CELL_SIZE, Constants.MAP_HEIGHT * Constants.CELL_SIZE), Constants.COLORS.GRID_BORDER, 1.0)
