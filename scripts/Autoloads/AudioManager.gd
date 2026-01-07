@@ -3,11 +3,9 @@ extends Node
 ## 音频管理器
 ## 负责全局背景音乐和音效的播放
 
-# 背景音乐播放器
-var music_player: AudioStreamPlayer
-# 音效播放器池，用于同时播放多个音效
+@onready var music_player: AudioStreamPlayer = $MusicPlayer
+# 音效播放器池，从场景节点中获取
 var sfx_players: Array[AudioStreamPlayer] = []
-var max_sfx_players: int = 12
 
 # 缓存音频资源
 var audio_resources: Dictionary = {
@@ -18,17 +16,10 @@ var audio_resources: Dictionary = {
 }
 
 func _ready() -> void:
-	# 初始化背景音乐播放器
-	music_player = AudioStreamPlayer.new()
-	music_player.bus = "Master" # 默认使用 Master，如果以后有 Bus 再调整
-	add_child(music_player)
-	
-	# 初始化音效播放器池
-	for i in range(max_sfx_players):
-		var p = AudioStreamPlayer.new()
-		p.bus = "Master"
-		add_child(p)
-		sfx_players.append(p)
+	# 从 SFXPool 环境中初始化音效播放器
+	for child in $SFXPool.get_children():
+		if child is AudioStreamPlayer:
+			sfx_players.append(child)
 	
 	# 默认开始播放背景音乐
 	play_music("bgm_main")
