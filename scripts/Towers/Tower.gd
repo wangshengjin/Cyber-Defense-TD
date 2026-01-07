@@ -157,10 +157,13 @@ func _fire(target: Enemy):
 	match type:
 		Constants.TowerType.LASER, Constants.TowerType.SNIPER:
 			# Instant hit / Beam
+			AudioManager.play_sfx("sfx_laser")
 			_fire_laser(target)
 		Constants.TowerType.CANNON:
+			AudioManager.play_sfx("sfx_laser") # Reusing laser sound for shot
 			_fire_projectile(target)
 		Constants.TowerType.SLOW:
+			AudioManager.play_sfx("sfx_click") # Subtle sound for pulse
 			_fire_slow_pulse() # AOE around tower
 
 func _fire_laser(target: Enemy):

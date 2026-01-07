@@ -34,6 +34,7 @@ func _ready():
 # 	draw_rect(get_viewport_rect(), Color(0, 0, 0, 0.5))
 
 func _on_start_button_pressed():
+	AudioManager.play_sfx("sfx_click")
 	# 开始前重置游戏状态
 	GameManager.reset_game()
 	# 切换到主游戏场景
@@ -43,4 +44,5 @@ func _on_start_button_pressed():
 		print("Game scene not assigned in StartMenu")
 
 func _on_quit_button_pressed():
+	AudioManager.play_sfx("sfx_click")
 	get_tree().quit()

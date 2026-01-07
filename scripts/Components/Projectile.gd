@@ -68,6 +68,7 @@ func _physics_process(delta):
 		_on_hit()
 
 func _on_hit():
+	AudioManager.play_sfx("sfx_explosion")
 	print("Projectile Hit!")
 	if splash_radius > 0:
 		_do_splash_damage()

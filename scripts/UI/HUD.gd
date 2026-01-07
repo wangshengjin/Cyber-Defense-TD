@@ -46,11 +46,13 @@ func _on_wave_changed(new_wave):
 	wave_label.text = "Wave: %d" % new_wave
 
 func _on_next_wave_pressed():
+	AudioManager.play_sfx("sfx_click")
 	# 发送信号给 Main 或 WaveManager
 	get_node("/root/Game/WaveManager").start_next_wave()
 	# 暂时禁用按钮？
 	
 func _on_speed_toggle():
+	AudioManager.play_sfx("sfx_click")
 	if GameManager.game_speed == 1.0:
 		GameManager.game_speed = 2.0
 		speed_btn.text = "2x Speed"
@@ -59,15 +61,19 @@ func _on_speed_toggle():
 		speed_btn.text = "1x Speed"
 
 func _on_build_laser_pressed():
+	AudioManager.play_sfx("sfx_click")
 	build_tower_requested.emit(Constants.TowerType.LASER)
 
 func _on_build_cannon_pressed():
+	AudioManager.play_sfx("sfx_click")
 	build_tower_requested.emit(Constants.TowerType.CANNON)
 
 func _on_build_slow_pressed():
+	AudioManager.play_sfx("sfx_click")
 	build_tower_requested.emit(Constants.TowerType.SLOW)
 
 func _on_build_sniper_pressed():
+	AudioManager.play_sfx("sfx_click")
 	build_tower_requested.emit(Constants.TowerType.SNIPER)
 
 # 塔控制面板逻辑
@@ -108,7 +114,9 @@ func hide_tower_controls():
 	tween.tween_callback(func(): tower_panel.visible = false)
 
 func _on_upgrade_pressed():
+	AudioManager.play_sfx("sfx_click")
 	upgrade_tower_requested.emit()
 
 func _on_sell_pressed():
+	AudioManager.play_sfx("sfx_click")
 	sell_tower_requested.emit()
