@@ -5,7 +5,7 @@ class_name WaveManager
 signal wave_started(wave_idx: int)
 signal wave_completed
 
-@export var path_2d: Path2D # Reference to the Path2D in the scene
+@export var path_2d: Path2D # 场景中的 Path2D 引用
 
 var current_wave_idx: int = 0
 var enemies_remaining_to_spawn: int = 0
@@ -27,18 +27,18 @@ func start_next_wave():
 	wave_started.emit(current_wave_idx)
 
 func _setup_wave_config():
-	# Use WAVES logic from Constants
+	# 使用 Constants 中的 WAVES 逻辑
 	if current_wave_idx <= Constants.WAVES.size():
 		current_wave_config = Constants.WAVES[current_wave_idx - 1]
 	else:
-		# Infinite scaling
+		# 循环扩展
 		var base_wave_idx = (current_wave_idx - 1) % Constants.WAVES.size()
 		var loop_count = (current_wave_idx - 1) / Constants.WAVES.size()
 		var base_config = Constants.WAVES[base_wave_idx]
 		
-		# Clone and modify
+		# 克隆并修改
 		current_wave_config = base_config.duplicate()
-		# Exponential scaling: 1.18^(Wave - 10) roughly
+		# 指数缩放: 大约 1.18^(Wave - 10)
 		var scaling_factor = pow(1.18, current_wave_idx - 10)
 		current_wave_config.hpMultiplier = current_wave_config.hpMultiplier * scaling_factor
 

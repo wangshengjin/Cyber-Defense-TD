@@ -2,6 +2,7 @@
 .godot/
 *.translation
 export_presets.cfg
+.agent/
 
 # Imported assets (automatic)
 *.import

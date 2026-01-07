@@ -21,11 +21,11 @@ func _ready():
 		push_error("GameMap node not found in MapManager!")
 		return
 		
-	# Ensure Source ID is set correctly (assuming 0 from our generator)
+	# 确保 TileSet源 ID设置正确（假设为0）
 	tile_set_source_id = 0
 	
 	_init_grid()
-	# Initialize path set for fast lookup
+	# 初始化路径集合以便快速查找
 	_init_path_set()
 	queue_redraw()
 
@@ -38,10 +38,10 @@ func _set_tile_cell(pos: Vector2i, tile_id: int):
 
 
 func _init_grid():
-	# Initialize randomized background tiles
-	# Using likely grass variants from Kenney pack: 
-	# 24: Standard Grass
-	var variants = [24, 24, 24, 24, 24, 25] # mostly 24, occassional variant
+	# 初始化随机背景图块
+	# 使用Kenney包中的草地变体: 
+	# 24: 标准草地
+	var variants = [24, 24, 24, 24, 24, 25] # 大多是24，偶尔出现变体
 	
 	for x in range(Constants.MAP_WIDTH):
 		for y in range(Constants.MAP_HEIGHT):
@@ -53,11 +53,11 @@ func _init_path_set():
 	var coords = Constants.PATH_COORDINATES
 	if coords.size() < 2: return
 	
-	# Fill path cells. This is a simplification. 
-	# In the React app it draws lines between points.
-	# We need to know which CELLS are occupied by the path to prevent building.
-	# Simple bresenham or just iterating segments.
-	# Since path is rectilinear (Manhattan), it's easy.
+	# 填充路径单元格。这是简化版。
+	# 在React版本中，它是绘制线段。
+	# 我们需要知道哪些 单元格 被路径占用，以防止在上面建造。
+	# 简单的布雷森汉姆算法或仅迭代线段。
+	# 由于路径是直线的（曼哈顿距离），这很容易。
 	
 	for i in range(coords.size() - 1):
 		var start = coords[i]
@@ -107,7 +107,7 @@ func place_tower(cell: Vector2i, tower_node: Node2D):
 	if is_valid_build_pos(cell):
 		towers[cell] = tower_node
 		tower_node.position = map_to_world(cell)
-		# Add as child in Main Game scene, not here necessarily, but passed in for tracking
+		# 添加为子节点在主游戏场景中完成，不一定在这里，但传入以进行跟踪
 		return true
 	return false
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://b8y2q8x7k4l3"]
+[gd_scene load_steps=8 format=3 uid="uid://b8y2q8x7k4l3"]
 
 [ext_resource type="Script" uid="uid://ud1gywebnmn" path="res://scripts/Game.gd" id="1_game"]
 [ext_resource type="Script" uid="uid://dcehsdkw06ukw" path="res://scripts/MapManager.gd" id="2_map"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://ik5lngdrgkkt" path="res://scripts/UI/HUD.gd" id="4_hud"]
 [ext_resource type="Environment" uid="uid://dak3r8x7k5m6" path="res://resources/CyberEnvironment.tres" id="5_env"]
 [ext_resource type="PackedScene" path="res://scenes/GameMap.tscn" id="6_gamemap"]
+[ext_resource type="PackedScene" path="res://scenes/Towers/GhostTower.tscn" id="7_ghost"]
 
 [sub_resource type="Curve2D" id="Curve2D_path"]
 _data = {
@@ -15,6 +16,7 @@ point_count = 10
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1_game")
+ghost_tower_scene = ExtResource("7_ghost")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(400, 240)
@@ -204,3 +206,6 @@ text = "Sell"
 [connection signal="pressed" from="CanvasLayer/HUD/BottomPanel/SpeedBtn" to="CanvasLayer/HUD" method="_on_speed_toggle"]
 [connection signal="pressed" from="CanvasLayer/HUD/TowerControlPanel/VBox/UpgradeBtn" to="CanvasLayer/HUD" method="_on_upgrade_pressed"]
 [connection signal="pressed" from="CanvasLayer/HUD/TowerControlPanel/VBox/SellBtn" to="CanvasLayer/HUD" method="_on_sell_pressed"]
+[connection signal="build_tower_requested" from="CanvasLayer/HUD" to="." method="_on_build_requested"]
+[connection signal="sell_tower_requested" from="CanvasLayer/HUD" to="." method="_on_sell_tower"]
+[connection signal="upgrade_tower_requested" from="CanvasLayer/HUD" to="." method="_on_upgrade_tower"]

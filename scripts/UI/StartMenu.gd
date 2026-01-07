@@ -2,9 +2,11 @@ extends Control
 
 @onready var background_rect = $Background
 
+@export var game_scene: PackedScene
+
 func _ready():
 	print("StartMenu _ready called")
-	# Keep background visible for now to debug "empty screen" issue
+	# 暂时保持背景可见以调试“黑屏”问题
 	if background_rect:
 		background_rect.visible = true
 	# queue_redraw() # Disable custom drawing
@@ -32,10 +34,13 @@ func _ready():
 # 	draw_rect(get_viewport_rect(), Color(0, 0, 0, 0.5))
 
 func _on_start_button_pressed():
-	# Reset game state before starting
+	# 开始前重置游戏状态
 	GameManager.reset_game()
-	# Change to the main game scene
-	get_tree().change_scene_to_file("res://scenes/Game.tscn")
+	# 切换到主游戏场景
+	if game_scene:
+		get_tree().change_scene_to_packed(game_scene)
+	else:
+		print("Game scene not assigned in StartMenu")
 
 func _on_quit_button_pressed():
 	get_tree().quit()

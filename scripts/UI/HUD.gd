@@ -24,13 +24,13 @@ func _ready():
 	
 	_setup_icons()
 	
-	# Init Tower Panel State (Hidden to right)
+	# 初始化塔信息面板状态（隐藏在右侧）
 	tower_panel.offset_left = 0
 	tower_panel.offset_right = 250
 	tower_panel.visible = false
 
 func _setup_icons():
-	# Tower Icons (using Turret tiles)
+	# 塔图标（使用炮塔图块）
 	build_laser_btn.icon = AtlasUtils.get_tile(250)
 	build_cannon_btn.icon = AtlasUtils.get_tile(206)
 	build_slow_btn.icon = AtlasUtils.get_tile(203)
@@ -46,9 +46,9 @@ func _on_wave_changed(new_wave):
 	wave_label.text = "Wave: %d" % new_wave
 
 func _on_next_wave_pressed():
-	# Signal to Main or WaveManager
+	# 发送信号给 Main 或 WaveManager
 	get_node("/root/Game/WaveManager").start_next_wave()
-	# Disable button temporarily?
+	# 暂时禁用按钮？
 	
 func _on_speed_toggle():
 	if GameManager.game_speed == 1.0:
@@ -70,7 +70,7 @@ func _on_build_slow_pressed():
 func _on_build_sniper_pressed():
 	build_tower_requested.emit(Constants.TowerType.SNIPER)
 
-# Tower Control Panel Logic
+# 塔控制面板逻辑
 @onready var tower_panel = $TowerControlPanel
 @onready var tower_info_label = $TowerControlPanel/VBox/InfoLabel
 @onready var upgrade_btn = $TowerControlPanel/VBox/UpgradeBtn

@@ -1,6 +1,6 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=4 format=3 uid="uid://boxh51mgon0b5"]
 
-[ext_resource type="Texture2D" path="res://assets/kenney_td/Tilesheet/towerDefense_tilesheet.png" id="1_ccdfn"]
+[ext_resource type="Texture2D" uid="uid://bihkrfbmr6vqf" path="res://assets/kenney_td/Tilesheet/towerDefense_tilesheet.png" id="1_ccdfn"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_jcon2"]
 texture = ExtResource("1_ccdfn")

@@ -1,32 +1,38 @@
 extends Node2D
 
+@export var ghost_tower_scene: PackedScene
+
 @onready var map_manager = $MapManager
 @onready var wave_manager = $WaveManager
 @onready var towers_container = $Towers
 @onready var projectiles_container = $Projectiles
 @onready var hud = $CanvasLayer/HUD
 
+# 建造模式状态标志
 var building_mode = false
+# 当前选中的塔类型（用于建造）
 var selected_tower_type = null
+# 幽灵塔实例（建造预览）
 var ghost_tower: Node2D
+# 当前选中的已建造的塔（用于升级/出售）
 var selected_tower: Node2D = null
 
 func _ready():
-	hud.build_tower_requested.connect(_on_build_requested)
-	hud.upgrade_tower_requested.connect(_on_upgrade_tower)
-	hud.sell_tower_requested.connect(_on_sell_tower)
 	wave_manager.path_2d = $Path2D
 	GameManager.game_over.connect(_on_game_over)
 
 func _process(delta):
+	# 如果处于建造模式，更新幽灵塔位置
 	if building_mode:
 		_update_ghost_tower()
 
 func _unhandled_input(event):
+	# 处理建造模式下的输入
 	if building_mode and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_try_place_tower()
+		_try_place_tower() # 左键放置
 	elif building_mode and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		_cancel_build()
+		_cancel_build() # 右键取消
+	# 处理非建造模式下的输入（选择塔）
 	elif not building_mode and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_handle_selection()
 
@@ -41,68 +47,39 @@ func _on_build_requested(type):
 	var cost = Constants.TOWER_STATS[type].cost
 	if GameManager.money >= cost:
 		building_mode = true
-		_create_ghost_tower()
+		_create_ghost_tower() # 创建预览塔
 	else:
 		print("Not enough money!")
 
 func _create_ghost_tower():
-	ghost_tower = Node2D.new()
-	var size = Constants.CELL_SIZE
-	
-	# Scale calculation
-	var scale_factor = float(Constants.CELL_SIZE) / float(AtlasUtils.TILE_SIZE)
+	if ghost_tower_scene:
+		ghost_tower = ghost_tower_scene.instantiate()
+		add_child(ghost_tower)
+		ghost_tower.update_type(selected_tower_type)
+	else:
+		print("Ghost Tower Scene not assigned!")
 
-	# Base Sprite
-	var base_sprite = Sprite2D.new()
-	base_sprite.texture = AtlasUtils.get_tile(181)
-	base_sprite.scale = Vector2(scale_factor, scale_factor)
-	ghost_tower.add_child(base_sprite)
-	
-	# Turret Sprite
-	var tile_id = -1
-	match selected_tower_type:
-		Constants.TowerType.LASER: tile_id = 250
-		Constants.TowerType.CANNON: tile_id = 206
-		Constants.TowerType.SLOW: tile_id = 203
-		Constants.TowerType.SNIPER: tile_id = 205
-	
-	if tile_id != -1:
-		var turret_sprite = Sprite2D.new()
-		turret_sprite.texture = AtlasUtils.get_tile(tile_id)
-		turret_sprite.scale = Vector2(scale_factor, scale_factor)
-		ghost_tower.add_child(turret_sprite)
-
-	# Range Indicator
-	var range_indicator = preload("res://scripts/UI/RangeIndicator.gd").new()
-	range_indicator.radius = Constants.TOWER_STATS[selected_tower_type].range_tiles * Constants.CELL_SIZE
-	range_indicator.color = Constants.TOWER_STATS[selected_tower_type].color
-	ghost_tower.add_child(range_indicator)
-
-	ghost_tower.modulate = Color(1, 1, 1, 0.5) # Initial transparency
-	add_child(ghost_tower)
-
+# 更新幽灵塔位置和有效性状态
 func _update_ghost_tower():
 	var mouse_pos = get_global_mouse_position()
 	var cell = map_manager.world_to_map(mouse_pos)
 	ghost_tower.position = map_manager.map_to_world(cell)
 	
 	if map_manager.is_valid_build_pos(cell):
-		var col = Constants.COLORS.HOVER_VALID
-		col.a = 0.5
-		ghost_tower.modulate = col
+		ghost_tower.set_valid(true)
 	else:
-		var col = Constants.COLORS.HOVER_INVALID
-		col.a = 0.5
-		ghost_tower.modulate = col
+		ghost_tower.set_valid(false)
 
 func _try_place_tower():
 	var mouse_pos = get_global_mouse_position()
 	var cell = map_manager.world_to_map(mouse_pos)
 	
+	# 尝试在特定位置放置塔
 	if map_manager.place_tower(cell, _create_real_tower()):
 		GameManager.money -= Constants.TOWER_STATS[selected_tower_type].cost
 		_cancel_build()
 
+# 实例化真实的塔对象
 func _create_real_tower() -> Node2D:
 	var tower_scene = preload("res://scenes/Towers/BaseTower.tscn")
 	var tower = tower_scene.instantiate()
