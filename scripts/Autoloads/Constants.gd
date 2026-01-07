@@ -18,7 +18,7 @@ enum EnemyType {
 # Port from constants.ts
 const MAP_WIDTH = 20
 const MAP_HEIGHT = 12
-const CELL_SIZE = 40
+const CELL_SIZE = 64
 
 const PATH_COORDINATES = [
 	Vector2i(0, 1),

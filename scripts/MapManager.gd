@@ -59,10 +59,12 @@ func _draw():
 		draw_line(Vector2(0, y * Constants.CELL_SIZE), Vector2(Constants.MAP_WIDTH * Constants.CELL_SIZE, y * Constants.CELL_SIZE), Constants.COLORS.GRID_BORDER, 1.0)
 
 func map_to_world(grid_pos: Vector2i) -> Vector2:
-	return Vector2(grid_pos.x * Constants.CELL_SIZE + Constants.CELL_SIZE / 2.0, grid_pos.y * Constants.CELL_SIZE + Constants.CELL_SIZE / 2.0)
+	# 使用 TileMapLayer 官方函数转换，它会自动考虑节点自身的 Position 和 Scale
+	return tile_map_layer.to_global(tile_map_layer.map_to_local(grid_pos))
 
 func world_to_map(world_pos: Vector2) -> Vector2i:
-	return Vector2i(world_pos.x / Constants.CELL_SIZE, world_pos.y / Constants.CELL_SIZE)
+	# 先转到本地坐标，再转到网格坐标
+	return tile_map_layer.local_to_map(tile_map_layer.to_local(world_pos))
 
 func is_valid_build_pos(cell: Vector2i) -> bool:
 	if cell.x < 0 or cell.x >= Constants.MAP_WIDTH or cell.y < 0 or cell.y >= Constants.MAP_HEIGHT:
