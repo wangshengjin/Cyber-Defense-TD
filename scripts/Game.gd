@@ -19,6 +19,8 @@ var selected_tower: Node2D = null
 
 func _ready():
 	wave_manager.path_2d = $Path2D
+	map_manager.path_2d = $Path2D
+	map_manager._sync_from_tilemap()
 	GameManager.game_over.connect(_on_game_over)
 
 func _process(delta):

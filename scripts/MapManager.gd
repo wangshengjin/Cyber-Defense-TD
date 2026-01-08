@@ -14,6 +14,7 @@ var path_set: Dictionary = {} # Vector2i -> bool
 var tile_map_layer: TileMapLayer
 var tile_set_source_id = 0
 var background_tiles: Dictionary = {}
+var path_2d: Path2D # 关联的路径节点
 
 func _ready() -> void:
 	tile_map_layer = $GameMap
@@ -21,42 +22,65 @@ func _ready() -> void:
 		push_error("GameMap node not found in MapManager!")
 		return
 	
+	# 如果父节点有 Path2D 且未指定，尝试查找
+	if not path_2d and get_parent().has_node("Path2D"):
+		path_2d = get_parent().get_node("Path2D")
+	
 	# 同步编辑器中的设置
 	_sync_from_tilemap()
 	queue_redraw()
 
-## 从 TileMapLayer 同步编辑器手画的内容到逻辑数据中
+## 从 TileMapLayer 和 Path2D 同步逻辑数据中
 func _sync_from_tilemap() -> void:
 	path_set.clear()
-	# 获取所有已画图块的坐标
-	var used_cells = tile_map_layer.get_used_cells()
 	
+	# 1. 从 Path2D 采样（作为核心真值）
+	# 既然用户调整了 Path2D 路径，这里应该作为最主要的禁放依据
+	if path_2d and path_2d.curve:
+		var curve = path_2d.curve
+		var length = curve.get_baked_length()
+		# 步长设为格子的 1/4，采样更密集
+		var step = Constants.CELL_SIZE / 4.0
+		for d in range(0, int(length) + 1, int(step)):
+			var local_pos = curve.sample_baked(d)
+			var global_pos = path_2d.to_global(local_pos)
+			var cell = world_to_map(global_pos)
+			path_set[cell] = true
+			
+			# 扩展采样：标记路径周围的格子也被禁放（如果路径刚好在边线上）
+			# 如果用户想要更严格的判定，可以给 local_pos 加一定的偏移量采样
+	
+	# 2. 从 TileMap 图块识别（作为辅助依据，如石头、水面等）
+	var used_cells = tile_map_layer.get_used_cells()
 	for cell in used_cells:
-		var atlas_coords = tile_map_layer.get_cell_atlas_coords(cell)
+		if path_set.has(cell): continue # 已经采样过了
 		
-		# 判断是否为路径图块
-		# 在当前素材包中，路径通常是坐标 (4, 2) 及其周边的变体
-		# 我们也可以通过 TileData 的自定义数据层来判断，但目前先用坐标匹配
+		var atlas_coords = tile_map_layer.get_cell_atlas_coords(cell)
 		if _is_path_tile(atlas_coords):
 			path_set[cell] = true
+	
+	queue_redraw()
 
 ## 判断坐标是否为路径图块
 func _is_path_tile(coords: Vector2i) -> bool:
-	# 沙子/路径图块在 Atlas 中的坐标通常是 (4, 2)
-	# 包含: 直线、弯道、起点终点等。
-	# 在 Kenney 素材包中，ID 46-52 (约 2:0 到 6:2 区域) 主要是路径相关
-	# 简单判断：只要是 y 轴在 1 到 4 之间的特定区域基本都是路径相关的装饰或主体
-	# 安全起见，我们匹配常用的路径坐标 (4, 2)
-	return coords == Vector2i(4, 2) or (coords.y >= 1 and coords.y <= 3 and coords.x >= 2 and coords.x <= 8)
+	# 简化识别，避免误杀背景
+	# Kenney 素材中常用的路径坐标
+	return coords == Vector2i(4, 2) or coords == Vector2i(0, 10) # 沙子路和水
 
 func _draw():
-	# Draw Randomized Background Tiles and Path Tiles are now handled by TileMapLayer
-	# Draw Grid
+	# 绘制网格
 	for x in range(Constants.MAP_WIDTH + 1):
 		draw_line(Vector2(x * Constants.CELL_SIZE, 0), Vector2(x * Constants.CELL_SIZE, Constants.MAP_HEIGHT * Constants.CELL_SIZE), Constants.COLORS.GRID_BORDER, 1.0)
 	
 	for y in range(Constants.MAP_HEIGHT + 1):
 		draw_line(Vector2(0, y * Constants.CELL_SIZE), Vector2(Constants.MAP_WIDTH * Constants.CELL_SIZE, y * Constants.CELL_SIZE), Constants.COLORS.GRID_BORDER, 1.0)
+	
+	# 如果处于建造模式且在编辑器调试，或者根据需要，可以绘制禁放区
+	# 这里默认绘制一层极淡的阴影来辅助用户观察禁放逻辑是否正确
+	var debug_path_color = Color(1.0, 0.0, 0.0, 0.1)
+	for cell in path_set:
+		var rect = Rect2(Vector2(cell) * Constants.CELL_SIZE, Vector2(Constants.CELL_SIZE, Constants.CELL_SIZE))
+		draw_rect(rect, debug_path_color)
 
 func map_to_world(grid_pos: Vector2i) -> Vector2:
 	# 使用 TileMapLayer 官方函数转换，它会自动考虑节点自身的 Position 和 Scale
